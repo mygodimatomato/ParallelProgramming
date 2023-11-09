@@ -23,16 +23,14 @@ int* image;
 
 pthread_mutex_t mutex;
 
-struct MandelbrotArgs{
-
-};
-
-bool get_position(*my_start, *my_end) {
+bool get_position(long int &my_start, long int &my_end) {
     if (end >= whole_len) {
         return false;
     } else {
         start = end;
         end += required_len;
+        if (end > whole_len) 
+            end = whole_len;
         my_start = start;
         my_end = end;
         return true;
@@ -77,20 +75,22 @@ void write_png(const char* filename, int iters, int width, int height, const int
     fclose(fp);
 }
 
-void *cal_mandelbrot() {
-    int my_start, my_end; 
+void* cal_mandelbrot(void* arg) {
+    long int my_start, my_end; 
 
     // run a loop to get next position and calculate it's mandelbrot
     while (true) {
         pthread_mutex_lock(&mutex);
-        if (get_position(&my_start, &my_end) == false) {
+        if (get_position(my_start, my_end) == false) {
             pthread_mutex_unlock(&mutex);
             break;
         }
+        // printf("%d\n", my_end);
         pthread_mutex_unlock(&mutex);
 
         // calculate the mandelbrot
         for (int i = my_start; i < my_end; i++) {
+
             double x0 = (i % width) * unit_x + left; // not sure, need check
             double y0 = (i / width) * unit_y + lower; // not sure, need check
 
@@ -104,10 +104,12 @@ void *cal_mandelbrot() {
                 x = temp;
                 length_squared = x * x + y * y;
                 ++repeats;
+
             }
             image[i] = repeats;
         }
     }
+    return NULL;
 }
 
 
@@ -117,7 +119,6 @@ int main(int argc, char** argv) {
     cpu_set_t cpu_set;
     sched_getaffinity(0, sizeof(cpu_set), &cpu_set);
     num_cpus = CPU_COUNT(&cpu_set);
-    
     // setting up the pthread pool
     pthread_t threads[num_cpus]; // this is for the thread pool
     unsigned long long ID[num_cpus]; // this is for the data that pass into the thread
@@ -136,28 +137,25 @@ int main(int argc, char** argv) {
     required_len = 20;
     start = 0;
     end = 0;
-
-    // MandelbrotArgs mandelbrotArgs(iters, left, right, lower, upper, width, height);
+    unit_x = (right - left) / width;
+    unit_y = (upper - lower) / height;
+    // printf("%d \n", whole_len);
 
     /* allocate memory for image */
     image = (int*)malloc(width * height * sizeof(int));
     assert(image);
 
     for (int i = 0; i < num_cpus; i++) {
-        ID[i] = i;
-        pthread_create(&thread[i], NULL, cal_mandelbrot, );
+        pthread_create(&threads[i], NULL, cal_mandelbrot, NULL);
     }
 
     // stop the threads
-    for (int i = 0; i < num_threads; i++) {
+    for (int i = 0; i < num_cpus; i++) {
         pthread_join(threads[i], NULL);
     }
 
     // free the mutex
     pthread_mutex_destroy(&mutex);
-
-    // free the thread pool
-    free(threads);
 
     /* draw and cleanup */
     write_png(filename, iters, width, height, image);
