@@ -10,15 +10,35 @@
 #include <string.h>
 #include <pthread.h>
 
-typedef struct {
-    int iters;
-    double left;
-    double right;
-    double lower;
-    double upper;
-    int width;
-    int height;
+int iters;
+double left, right;
+double lower, upper;
+int width, height;
+int num_cpus;
+double unit_x, unit_y;
+long int whole_len, start, end;
+int required_len;
+int* image;
+
+
+pthread_mutex_t mutex;
+
+struct MandelbrotArgs{
+
 };
+
+bool get_position(*my_start, *my_end) {
+    if (end >= whole_len) {
+        return false;
+    } else {
+        start = end;
+        end += required_len;
+        my_start = start;
+        my_end = end;
+        return true;
+    }
+}
+
 
 void write_png(const char* filename, int iters, int width, int height, const int* buffer) {
     FILE* fp = fopen(filename, "wb");
@@ -57,37 +77,22 @@ void write_png(const char* filename, int iters, int width, int height, const int
     fclose(fp);
 }
 
-void cal_mandelbrot(double y0, double x0, ) {
+void *cal_mandelbrot() {
+    int my_start, my_end; 
 
-}
+    // run a loop to get next position and calculate it's mandelbrot
+    while (true) {
+        pthread_mutex_lock(&mutex);
+        if (get_position(&my_start, &my_end) == false) {
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+        pthread_mutex_unlock(&mutex);
 
-int main(int argc, char** argv) {
-    /* detect how many CPUs are available */
-    cpu_set_t cpu_set;
-    sched_getaffinity(0, sizeof(cpu_set), &cpu_set);
-    printf("%d cpus available\n", CPU_COUNT(&cpu_set));
-
-    /* argument parsing */
-    assert(argc == 9);
-    const char* filename = argv[1];
-    int iters = strtol(argv[2], 0, 10);
-    double left = strtod(argv[3], 0);
-    double right = strtod(argv[4], 0);
-    double lower = strtod(argv[5], 0);
-    double upper = strtod(argv[6], 0);
-    int width = strtol(argv[7], 0, 10);
-    int height = strtol(argv[8], 0, 10);
-
-    /* allocate memory for image */
-    int* image = (int*)malloc(width * height * sizeof(int));
-    assert(image);
-
-    /* mandelbrot set */
-    for (int j = 0; j < height; ++j) {
-        double y0 = j * ((upper - lower) / height) + lower;
-        for (int i = 0; i < width; ++i) {
-            pthread
-            double x0 = i * ((right - left) / width) + left;
+        // calculate the mandelbrot
+        for (int i = my_start; i < my_end; i++) {
+            double x0 = (i % width) * unit_x + left; // not sure, need check
+            double y0 = (i / width) * unit_y + lower; // not sure, need check
 
             int repeats = 0;
             double x = 0;
@@ -100,12 +105,64 @@ int main(int argc, char** argv) {
                 length_squared = x * x + y * y;
                 ++repeats;
             }
-            image[j * width + i] = repeats;
+            image[i] = repeats;
         }
     }
+}
+
+
+
+int main(int argc, char** argv) {
+    /* detect how many CPUs are available */
+    cpu_set_t cpu_set;
+    sched_getaffinity(0, sizeof(cpu_set), &cpu_set);
+    num_cpus = CPU_COUNT(&cpu_set);
+    
+    // setting up the pthread pool
+    pthread_t threads[num_cpus]; // this is for the thread pool
+    unsigned long long ID[num_cpus]; // this is for the data that pass into the thread
+
+    /* argument parsing */
+    assert(argc == 9);
+    const char* filename = argv[1];
+    iters = strtol(argv[2], 0, 10);
+    left = strtod(argv[3], 0);
+    right = strtod(argv[4], 0);
+    lower = strtod(argv[5], 0);
+    upper = strtod(argv[6], 0);
+    width = strtol(argv[7], 0, 10);
+    height = strtol(argv[8], 0, 10);
+    whole_len = width * height;
+    required_len = 20;
+    start = 0;
+    end = 0;
+
+    // MandelbrotArgs mandelbrotArgs(iters, left, right, lower, upper, width, height);
+
+    /* allocate memory for image */
+    image = (int*)malloc(width * height * sizeof(int));
+    assert(image);
+
+    for (int i = 0; i < num_cpus; i++) {
+        ID[i] = i;
+        pthread_create(&thread[i], NULL, cal_mandelbrot, );
+    }
+
+    // stop the threads
+    for (int i = 0; i < num_threads; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    // free the mutex
+    pthread_mutex_destroy(&mutex);
+
+    // free the thread pool
+    free(threads);
 
     /* draw and cleanup */
     write_png(filename, iters, width, height, image);
     free(image);
+
+    return 0;
 }
 
