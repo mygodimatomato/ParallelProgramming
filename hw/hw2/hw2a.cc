@@ -77,7 +77,11 @@ void write_png(const char* filename, int iters, int width, int height, const int
 
 void* cal_mandelbrot(void* arg) {
     long int my_start, my_end; 
-
+    double x0, y0;
+    double x, y, length_squared;
+    int repeats;
+    double temp;
+    
     // run a loop to get next position and calculate it's mandelbrot
     while (true) {
         pthread_mutex_lock(&mutex);
@@ -89,23 +93,25 @@ void* cal_mandelbrot(void* arg) {
         pthread_mutex_unlock(&mutex);
 
         // calculate the mandelbrot
+        
         for (int i = my_start; i < my_end; i++) {
 
-            double x0 = (i % width) * unit_x + left; // not sure, need check
-            double y0 = (i / width) * unit_y + lower; // not sure, need check
+            x0 = (i % width) * unit_x + left; // not sure, need check
+            y0 = (i / width) * unit_y + lower; // not sure, need check
 
-            int repeats = 0;
-            double x = 0;
-            double y = 0;
-            double length_squared = 0;
+            repeats = 0;
+            x = 0;
+            y = 0;
+            length_squared = 0;
             while (repeats < iters && length_squared < 4) {
-                double temp = x * x - y * y + x0;
+                temp = (x*x) - (y*y) + x0;
                 y = 2 * x * y + y0;
                 x = temp;
                 length_squared = x * x + y * y;
                 ++repeats;
 
             }
+            printf("i = %d, %d\n", i, repeats);
             image[i] = repeats;
         }
     }
