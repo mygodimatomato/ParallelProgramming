@@ -253,13 +253,11 @@ int main(int argc, char** argv) {
     image = (int*)malloc(width * height * sizeof(int));
     assert(image);
 
-    #pragma GCC ivdep
     for (int i = 0; i < num_cpus; i++) {
         pthread_create(&threads[i], NULL, cal_mandelbrot, NULL);
     }
 
     // stop the threads
-    #pragma GCC ivdep
     for (int i = 0; i < num_cpus; i++) {
         pthread_join(threads[i], NULL);
     }

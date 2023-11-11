@@ -8,23 +8,153 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <emmintrin.h>
+#include <omp.h>
+#include <mpi.h>
 
-int iters, width, height;
+int num_cpus;
+int iters;
+int width, height, whole_len;
+int required_len;
 double left, right, lower, upper;
+double unit_x, unit_y;
+int *fullImage;
+int *localImage;
 
-bool get_position(long int &my_start, long int &my_end) {
-    if (end >= whole_len) {
+
+bool get_position(long int & process_whole_len, long int &process_start, long int &process_end, long int &thread_start, long int &thread_end) {
+    if (process_end >= process_whole_len) {
         return false;
     } else {
-        start = end;
-        end += required_len;
-        if (end > whole_len) 
-            end = whole_len;
-        my_start = start;
-        my_end = end;
+        process_start = process_end;
+        process_end += required_len;
+        if (process_end > process_whole_len) 
+            process_end = process_whole_len;
+        thread_start = process_start;
+        thread_end = process_end;
         return true;
     }
 }
+
+void write_png(const char *filename, int iters, int width, int height, const int *buffer);
+
+
+int main(int argc, char** argv) {
+    /* detect how many CPUs are available */
+    cpu_set_t cpu_set;
+    sched_getaffinity(0, sizeof(cpu_set), &cpu_set);
+    num_cpus = CPU_COUNT(&cpu_set);
+
+    /* argument parsing */
+    assert(argc == 9);
+    const char* filename = argv[1];
+    iters = strtol(argv[2], 0, 10);
+    left = strtod(argv[3], 0);
+    right = strtod(argv[4], 0);
+    lower = strtod(argv[5], 0);
+    upper = strtod(argv[6], 0);
+    width = strtol(argv[7], 0, 10);
+    height = strtol(argv[8], 0, 10);
+    whole_len = width * height;
+    unit_x = (right - left) / width;
+    unit_y = (upper - lower) / height;
+    required_len = 20;
+
+    /* MPI */
+    int rank, size;
+
+    // MPI Init
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    
+    // since the data is 1D, we split the data by rank + size * i
+    // mygodimatomato : did not handle the situation of size > whole_len, don't think it will happen
+    // 13/4 = 3 -> every process will have 3 units of data
+    // 13%4 = 1 
+    // 0, 1, 2, 3
+    // 0, 4, 8, 12 -> required_len = 4
+    // 1, 5, 9
+    // 2, 6, 10
+    // 3, 7, 11
+    long int process_whole_len = whole_len / size;
+    if (whole_len % size > rank) {
+        process_whole_len += 1;
+    }
+    
+    // shared by all the processes, this is the cursor for run 
+    long int process_start = 0;
+    long int process_end = 0;
+    
+    // Image array initialization
+    // rank 0 is responsible for the full image maintainence
+    if (rank == 0) {
+        fullImage = (int*)malloc(whole_len * sizeof(int));
+        assert(fullImage);
+    }
+
+    localImage = (int*)malloc(process_whole_len * sizeof(int));
+
+    /* mandelbrot set */
+    // start pthread parallel
+    #pragma omp parallel num_threads(num_cpus)
+    {
+        double x0, y0, x, y, length_squared;
+        int repeats;
+        double temp;
+        long int repeats, thread_start, thread_end;
+        while (true) {
+
+            omp_set_lock(&posLock);
+            if (get_position(process_whole_len, process_end, thread_start, thread_end) == false) {
+                omp_unset_lock(&posLock);
+                break;
+            }
+            omp_unset_lock(&posLock);
+
+            for(int i = thread_start; i < thread_end; i++) {
+                int real_pos = i * size + rank;
+                x0 = (real_pos % width) * unit_x + left;
+                y0 = (real_pos / width) * unit_y + lower;
+
+                repeats = 0;
+                x = 0; 
+                y = 0; 
+                length_squared = 0;
+                while (repeats < iters && length_squared < 4) {
+                    temp = (x*x) - (y*y) + x0;
+                    y = 2 * x * y + y0;
+                    x = temp;
+                    length_squared = x * x + y * y;
+                    ++repeats;
+                }
+                localImage[i] = repeats;
+            }
+        }
+    }
+
+    // testing the vector method
+    // need to transfer the local pixel to full pixel
+    MPI_Datatype stride_type;
+    MPI_Type_vector(process_whole_len, 1, size, MPI_INT, &stride_type);
+    MPI_Type_commit(&stride_type);
+
+
+    // send the data back to rank 0
+    MPI_Gatherv(localImage, process_whole_len, MPI_INT, fullImage, stride_type, NULL, MPI_INT, 0, MPI_COMM_WORLD);
+    free(localImage);
+
+    MPI_Type_free(&stride_type);
+
+
+    /* draw and cleanup */
+    if (rank == 0) {
+        write_png(filename, iters, width, height, fullImage);
+    }
+    MPI_Finalize();
+    free(fullImage);
+}
+
 
 void write_png(const char* filename, int iters, int width, int height, const int* buffer) {
     FILE* fp = fopen(filename, "wb");
@@ -61,56 +191,4 @@ void write_png(const char* filename, int iters, int width, int height, const int
     png_write_end(png_ptr, NULL);
     png_destroy_write_struct(&png_ptr, &info_ptr);
     fclose(fp);
-}
-
-int main(int argc, char** argv) {
-    /* detect how many CPUs are available */
-    cpu_set_t cpu_set;
-    sched_getaffinity(0, sizeof(cpu_set), &cpu_set);
-    // printf("%d cpus available\n", CPU_COUNT(&cpu_set));
-
-    /* argument parsing */
-    assert(argc == 9);
-    const char* filename = argv[1];
-    iters = strtol(argv[2], 0, 10);
-    left = strtod(argv[3], 0);
-    right = strtod(argv[4], 0);
-    lower = strtod(argv[5], 0);
-    upper = strtod(argv[6], 0);
-    width = strtol(argv[7], 0, 10);
-    height = strtol(argv[8], 0, 10);
-
-    // MPI Init
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    /* allocate memory for image */
-    int* image = (int*)malloc(width * height * sizeof(int));
-    assert(image);
-
-    /* mandelbrot set */
-    for (int j = 0; j < height; ++j) {
-        double y0 = j * ((upper - lower) / height) + lower;
-        for (int i = 0; i < width; ++i) {
-            double x0 = i * ((right - left) / width) + left;
-
-            int repeats = 0;
-            double x = 0;
-            double y = 0;
-            double length_squared = 0;
-            while (repeats < iters && length_squared < 4) {
-                double temp = x * x - y * y + x0;
-                y = 2 * x * y + y0;
-                x = temp;
-                length_squared = x * x + y * y;
-                ++repeats;
-            }
-            image[j * width + i] = repeats;
-        }
-    }
-
-    /* draw and cleanup */
-    write_png(filename, iters, width, height, image);
-    free(image);
 }
