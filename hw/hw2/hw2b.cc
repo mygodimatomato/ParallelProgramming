@@ -166,12 +166,15 @@ int main(int argc, char** argv) {
 
     /* draw and cleanup */
     if (rank == 0) {
-        for(int i = 0; i < size; i++) {
-            for(int j = 0; j < process_whole_len; j++) {
-                fullImage[displacements[i] + j] = tmp[i * process_whole_len + j];
+        int k = 0;
+        for(int i = 0; i < whole_len/size; i++) { //3
+            for(int j = 0; j < size; j++) { //4
+                fullImage[k++] = tmp[displacements[j] + i];
             }
         }
-        
+        for (int i = 0; i < whole_len%size; i++){
+            fullImage[k++] = tmp[displacements[i] + whole_len/size];
+        }
         write_png(filename, iters, width, height, fullImage);
     }
     MPI_Finalize();

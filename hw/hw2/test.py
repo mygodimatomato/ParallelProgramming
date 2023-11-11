@@ -1,40 +1,17 @@
-x0 = -10
-x1 = 10
-y0 = -10
-y1 = 10
-w = 20
-h = 20
-a = 2
-b = 1
+whole_len = 13
+size = 4
+recvcounts = [4, 3, 3, 3]
+displacements = [0, 4, 7, 10]
+test = [0, 4, 8, 12,1, 5, 9,2,6, 10, 3, 7, 11]
+test_2 = []
 
-unit_width = (x1 - x0) / w
-unit_height = (y1 - y0) / h
+# use size, recvcounts, displacement to get the sorted test_2, which should be [0,1,2,3,4,5,6,7,8,9,10,11,12]
+# append test_2 with the sorted numbers
+for j in range(3):
+  for i in range(size):
+    test_2.append(test[displacements[i] + j])
+for i in range(whole_len%size):
+  test_2.append(test[displacements[i] + 3] )
 
-# initialize the cursor position
-X_cur = x0
-Y_cur = y0
-X_prev = X_cur
-Y_prev = Y_cur
-
-def det_blocks(x0, x1, y0, y1, w, h, a, b, X_cur, Y_cur, X_prev, Y_prev) :
-    # check if the block is out of bound
-    Y_prev = Y_cur
-    X_prev = X_cur
-    X_cur = X_cur + unit_width * a
-    if X_cur >= x1 :
-      X_cur = x0 + X_cur - x1
-      Y_cur = Y_cur + unit_height * b
-      if Y_cur >= y1 :
-        X_prev = X_cur
-        Y_prev = Y_cur
-        X_cur = 100
-        Y_cur = 100
-    
-  return X_cur, Y_cur, X_prev, Y_prev
-
-# run a for loop to check if the det_blocks function works
-for i in range(0, 200) :
-  X_cur, Y_cur, X_prev, Y_prev = det_blocks(x0, x1, y0, y1, w, h, a, b, X_cur, Y_cur, X_prev, Y_prev)
-  print(X_cur, Y_cur, X_prev, Y_prev)
-  if X_cur == 100 or Y_cur == 100 :
-    break
+for i in range(whole_len):
+  print(test_2[i])
