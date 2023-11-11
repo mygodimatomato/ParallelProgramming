@@ -12,6 +12,20 @@
 int iters, width, height;
 double left, right, lower, upper;
 
+bool get_position(long int &my_start, long int &my_end) {
+    if (end >= whole_len) {
+        return false;
+    } else {
+        start = end;
+        end += required_len;
+        if (end > whole_len) 
+            end = whole_len;
+        my_start = start;
+        my_end = end;
+        return true;
+    }
+}
+
 void write_png(const char* filename, int iters, int width, int height, const int* buffer) {
     FILE* fp = fopen(filename, "wb");
     assert(fp);
@@ -53,7 +67,7 @@ int main(int argc, char** argv) {
     /* detect how many CPUs are available */
     cpu_set_t cpu_set;
     sched_getaffinity(0, sizeof(cpu_set), &cpu_set);
-    printf("%d cpus available\n", CPU_COUNT(&cpu_set));
+    // printf("%d cpus available\n", CPU_COUNT(&cpu_set));
 
     /* argument parsing */
     assert(argc == 9);
