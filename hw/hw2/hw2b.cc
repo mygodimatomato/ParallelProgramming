@@ -20,6 +20,7 @@ double left, right, lower, upper;
 double unit_x, unit_y;
 int *fullImage;
 int *localImage;
+omp_lock_t posLock;
 
 
 bool get_position(long int & process_whole_len, long int &process_start, long int &process_end, long int &thread_start, long int &thread_end) {
@@ -102,11 +103,11 @@ int main(int argc, char** argv) {
         double x0, y0, x, y, length_squared;
         int repeats;
         double temp;
-        long int repeats, thread_start, thread_end;
+        long int thread_start, thread_end;
         while (true) {
 
             omp_set_lock(&posLock);
-            if (get_position(process_whole_len, process_end, thread_start, thread_end) == false) {
+            if (get_position(process_whole_len, process_start, process_end, thread_start, thread_end) == false) {
                 omp_unset_lock(&posLock);
                 break;
             }
@@ -139,9 +140,22 @@ int main(int argc, char** argv) {
     MPI_Type_vector(process_whole_len, 1, size, MPI_INT, &stride_type);
     MPI_Type_commit(&stride_type);
 
+    int recvcounts[size];
+    int displacements[size];
+    if (rank == 0) {
+        for (int i = 0; i < size; i++){
+            recvcounts[i] = whole_len/size;
+            if (whole_len % size > i)
+                recvcounts[i]++;
+            if (i > 0)
+                displacements[i] = recvcounts[i-1] + recvcounts[i];
+            else 
+                displacements[i] = recvcounts[i];
+        }
+    }
 
     // send the data back to rank 0
-    MPI_Gatherv(localImage, process_whole_len, MPI_INT, fullImage, stride_type, NULL, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Gatherv(localImage, process_whole_len, MPI_INT, fullImage, recvcounts, displacements, stride_type, 0, MPI_COMM_WORLD);
     free(localImage);
 
     MPI_Type_free(&stride_type);
