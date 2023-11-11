@@ -19,6 +19,7 @@ int required_len;
 double left, right, lower, upper;
 double unit_x, unit_y;
 int *fullImage;
+int *tmp;
 int *localImage;
 omp_lock_t posLock;
 
@@ -87,6 +88,7 @@ int main(int argc, char** argv) {
     long int process_start = 0;
     long int process_end = 0;
     
+    
     // Image array initialization
     // rank 0 is responsible for the full image maintainence
     if (rank == 0) {
@@ -95,6 +97,7 @@ int main(int argc, char** argv) {
     }
 
     localImage = (int*)malloc(process_whole_len * sizeof(int));
+    tmp = (int*)malloc(process_whole_len * sizeof(int));
 
     /* mandelbrot set */
     // start pthread parallel
@@ -112,8 +115,9 @@ int main(int argc, char** argv) {
                 break;
             }
             omp_unset_lock(&posLock);
-
+            // printf("thread %d, start from %d, end at %d\n", rank, thread_start, thread_end);
             for(int i = thread_start; i < thread_end; i++) {
+            
                 int real_pos = i * size + rank;
                 x0 = (real_pos % width) * unit_x + left;
                 y0 = (real_pos / width) * unit_y + lower;
@@ -129,40 +133,51 @@ int main(int argc, char** argv) {
                     length_squared = x * x + y * y;
                     ++repeats;
                 }
-                localImage[i] = repeats;
+                localImage[i] = rank;
             }
         }
     }
 
-    // testing the vector method
-    // need to transfer the local pixel to full pixel
-    MPI_Datatype stride_type;
-    MPI_Type_vector(process_whole_len, 1, size, MPI_INT, &stride_type);
-    MPI_Type_commit(&stride_type);
 
     int recvcounts[size];
-    int displacements[size];
-    if (rank == 0) {
-        for (int i = 0; i < size; i++){
-            recvcounts[i] = whole_len/size;
-            if (whole_len % size > i)
-                recvcounts[i]++;
-            if (i > 0)
-                displacements[i] = recvcounts[i-1] + recvcounts[i];
-            else 
-                displacements[i] = recvcounts[i];
+    int displacements[size] = {0};
+    for (int i = 0; i < size; i++){
+        recvcounts[i] = whole_len/size;
+        if (whole_len % size > i)
+            recvcounts[i]++;
+        if (i > 0){
+            displacements[i] = displacements[i-1] + recvcounts[i];
         }
     }
 
+    // if (rank == 0) {
+    //     for (int i = 0; i < size; i++)
+    //         printf("%d ", recvcounts[i]);
+    //     printf("\n");
+    //     for (int i = 0; i < size; i++)
+    //         printf("%d ", displacements[i]);
+    //     printf("\n");
+    // }
+
+    // printf("thread %d, len = %d\n", rank, process_whole_len);
     // send the data back to rank 0
-    MPI_Gatherv(localImage, process_whole_len, MPI_INT, fullImage, recvcounts, displacements, stride_type, 0, MPI_COMM_WORLD);
-    free(localImage);
-
-    MPI_Type_free(&stride_type);
-
+    MPI_Gatherv(localImage, process_whole_len, MPI_INT, tmp, recvcounts, displacements, MPI_INT, 0, MPI_COMM_WORLD);
+    // free(localImage);
 
     /* draw and cleanup */
     if (rank == 0) {
+        long int now = whole_len / size;
+        for (int i = 0; i < size; i++){
+            for (int j = 0; j < whole_len/size; j++){
+                fullImage[j]
+            }
+        }
+        for(int i = 0; i < now; i++){
+            fullImage[i*3] = tmp[i]
+        }
+        for (int i = 0; i < whole_len; i++) {
+            printf("%d\n", fullImage[i]);
+        }
         write_png(filename, iters, width, height, fullImage);
     }
     MPI_Finalize();
