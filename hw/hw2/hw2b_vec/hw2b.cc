@@ -104,9 +104,17 @@ int main(int argc, char** argv) {
     #pragma omp parallel num_threads(num_cpus)
     {
         double x0, y0, x, y, length_squared;
-        int repeats;
+        int repeats, now_0, now_1;
         double temp;
         long int thread_start, thread_end;
+        int i;
+
+        __m128d vec_x0, vec_y0, vec_x, vec_y, vec_length_squared, vec_temp, vec_repeats, vec_x_squared, vec_y_squared, vec_xy, mask;
+        __m128d vec_ones = _mm_set1_pd(1);
+        __m128d vec_four = _mm_set1_pd(4);
+        __m128d vec_iters = _mm_set1_pd(iters);
+        int maskResult = 0;
+
         while (true) {
 
             omp_set_lock(&posLock);
@@ -115,26 +123,92 @@ int main(int argc, char** argv) {
                 break;
             }
             omp_unset_lock(&posLock);
-            // printf("thread %d, start from %d, end at %d\n", rank, thread_start, thread_end);
-            for(int i = thread_start; i < thread_end; i++) {
-            
-                int real_pos = i * size + rank;
-                x0 = (real_pos % width) * unit_x + left;
-                y0 = (real_pos / width) * unit_y + lower;
 
-                repeats = 0;
-                x = 0; 
-                y = 0; 
-                length_squared = 0;
-                while (repeats < iters && length_squared < 4) {
-                    temp = (x*x) - (y*y) + x0;
-                    y = 2 * x * y + y0;
-                    x = temp;
-                    length_squared = x * x + y * y;
-                    ++repeats;
+            i = thread_start;
+            while(true) {
+                if (i >= thread_end) break;
+                if (maskResult == 0) {
+                    now_0 = i;
+                    i++;
+                    now_1 = i;
+                    i++;
+                    double x_0 = ((now_0*size+rank) % width) * unit_x + left;
+                    double x_1 = ((now_1*size+rank) % width) * unit_x + left;
+                    double xx[2] = {x_0, x_1};
+                    vec_x0 = _mm_load_pd(&xx[0]); // I want the vector arrange as [now_0, now_1]
+                    double y_0 = ((now_0*size+rank) / width) * unit_y + lower;
+                    double y_1 = ((now_1*size+rank) / width) * unit_y + lower;
+                    double yy[2] = {y_0, y_1};
+                    vec_y0 = _mm_load_pd(&yy[0]);
+                    vec_repeats = _mm_set1_pd(0);
+                    vec_x = _mm_set1_pd(0);
+                    vec_y = _mm_set1_pd(0);
+                    vec_length_squared = _mm_set1_pd(0);
+                } else if (maskResult == 1) {
+                    now_1 = i++;
+                    double xx[1] = {((now_1*size+rank) % width) * unit_x + left};
+                    vec_x0 = _mm_loadh_pd(vec_x0, &xx[0]);
+                    double yy[1] = {((now_1*size+rank) / width) * unit_y + lower};
+                    vec_y0 = _mm_loadh_pd(vec_y0, &yy[0]);
+                    double zero[1]= {0};
+                    vec_repeats = _mm_loadh_pd(vec_repeats, &zero[0]);
+                    vec_x = _mm_loadh_pd(vec_x, &zero[0]);
+                    vec_y = _mm_loadh_pd(vec_y, &zero[0]);
+                    vec_length_squared = _mm_loadh_pd(vec_length_squared, &zero[0]);
+                } else if (maskResult == 2) {
+                    now_0 = i++;
+                    double xx[1] = {((now_0*size+rank) % width) * unit_x + left};
+                    vec_x0 = _mm_loadl_pd(vec_x0, &xx[0]);
+                    double yy[1] = {((now_0*size+rank) / width) * unit_y + lower};
+                    vec_y0 = _mm_loadl_pd(vec_y0, &yy[0]);
+                    double zero[1] = {0};
+                    vec_repeats = _mm_loadl_pd(vec_repeats, &zero[0]);
+                    vec_x = _mm_loadl_pd(vec_x, &zero[0]);
+                    vec_y = _mm_loadl_pd(vec_y, &zero[0]);
+                    vec_length_squared = _mm_loadl_pd(vec_length_squared, &zero[0]);
                 }
-                localImage[i] = repeats;
+
+                while (true) {
+                    vec_x_squared = _mm_mul_pd(vec_x, vec_x);
+                    vec_y_squared = _mm_mul_pd(vec_y, vec_y);
+                    vec_temp = _mm_add_pd(_mm_sub_pd(vec_x_squared, vec_y_squared), vec_x0);
+
+                    vec_xy = _mm_mul_pd(vec_x, vec_y);
+                    vec_y = _mm_add_pd(_mm_mul_pd(vec_xy, _mm_set1_pd(2)), vec_y0);
+
+                    vec_x = vec_temp;
+
+                    vec_x_squared = _mm_mul_pd(vec_x, vec_x);
+                    vec_y_squared = _mm_mul_pd(vec_y, vec_y);
+                    vec_length_squared = _mm_add_pd(vec_x_squared, vec_y_squared);
+
+                    vec_repeats = _mm_add_pd(vec_repeats, vec_ones);
+                    __m128d vec_tmp = vec_repeats;
+
+                    mask = _mm_and_pd(_mm_cmplt_pd(vec_length_squared, vec_four), _mm_cmplt_pd(vec_tmp, _mm_set1_pd(iters)));
+                    maskResult = _mm_movemask_pd(mask);
+                    if (maskResult <= 2) break; // If any one value in mask is 0 -> break
+                }
+
+                double res[2];
+                _mm_storeu_pd((double*)&res, vec_repeats);
+                if (maskResult == 0) { // both vec elem cause break
+                    localImage[now_0] = (int)res[0];
+                    localImage[now_1] = (int)res[1];
+                    // printf("condition1\n");
+                    // printf("i = %d, %d\n", now_0, (int)res[0]);
+                    // printf("i = %d, %d\n", now_1, (int)res[1]);
+                } else if (maskResult == 1) { // Lower element is non-zero, higher element is zero
+                    // printf("condition2\n");
+                    localImage[now_1] = (int)res[1];
+                    // printf("i = %d, %d\n", now_1, (int)res[1]);
+                } else if (maskResult == 2) {
+                    localImage[now_0] = (int)res[0];
+                    // printf("condition3\n");
+                    // printf("i = %d, %d\n", now_0, (int)res[0]);
+                }
             }
+
         }
     }
 
