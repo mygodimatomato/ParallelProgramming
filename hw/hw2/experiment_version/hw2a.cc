@@ -10,6 +10,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <emmintrin.h>
+#include <time.h>
 
 int iters;
 double left, right;
@@ -223,6 +224,9 @@ void* cal_mandelbrot(void* arg) {
 
 
 int main(int argc, char** argv) {
+    struct timespec t_start, t_end;
+    clock_gettime(CLOCK_MONOTONIC, &t_start);
+
     /* detect how many CPUs are available */
     cpu_set_t cpu_set;
     sched_getaffinity(0, sizeof(cpu_set), &cpu_set);
@@ -271,6 +275,11 @@ int main(int argc, char** argv) {
     write_png(filename, iters, width, height, image);
     free(image);
 
+    clock_gettime(CLOCK_MONOTONIC, &t_end);
+    double elapsed_time = (t_end.tv_sec - t_start.tv_sec) + 
+                          (t_end.tv_nsec - t_start.tv_nsec) / 1e9;
+
+    printf("Elapsed Time: %f seconds\n", elapsed_time);
     return 0;
 }
 
