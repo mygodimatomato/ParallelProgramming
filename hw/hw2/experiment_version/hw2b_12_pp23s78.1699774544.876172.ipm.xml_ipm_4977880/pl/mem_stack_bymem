@@ -11,12 +11,12 @@
                                                                                 
 #proc getdata
 data:
-0 apollo42 1.101288
-1 apollo43 1.101288
-2 apollo44 0.734192
-3 apollo41 0.734192
-4 apollo46 0.367096
-5 apollo45 0.367096
+0 apollo43 1.101288
+1 apollo42 1.101288
+2 apollo41 0.734192
+3 apollo44 0.734192
+4 apollo45 0.367096
+5 apollo46 0.367096
                                                                                 
  #proc bars
   lenfield: 3

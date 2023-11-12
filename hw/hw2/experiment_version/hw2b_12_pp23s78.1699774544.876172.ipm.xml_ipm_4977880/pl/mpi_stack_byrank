@@ -51,14 +51,14 @@ data:
   #clone: A
   lenfield: 11
   color: yellow
-  legendlabel: MPI_Init
+  legendlabel: MPI_Finalize
   stackfields: *
                                                                                 
  #proc bars
   #clone: A
   lenfield: 12
   color: purple
-  legendlabel: MPI_Finalize
+  legendlabel: MPI_Init
   stackfields: *
                                                                                 
  

@@ -71,10 +71,10 @@ xfield: 2
 yfield: 8
 sort: yes
 accum: yes
-select: @@1 = MPI_Init
-linedetails: color=purple
-legendlabel: MPI_Init
-pointsymbol: shape=circle linecolor=black radius=0.03 fillcolor=purple
+select: @@1 = MPI_Finalize
+linedetails: color=yellow
+legendlabel: MPI_Finalize
+pointsymbol: shape=circle linecolor=black radius=0.03 fillcolor=yellow
  
  
 #proc lineplot
@@ -82,10 +82,10 @@ xfield: 2
 yfield: 8
 sort: yes
 accum: yes
-select: @@1 = MPI_Finalize
-linedetails: color=yellow
-legendlabel: MPI_Finalize
-pointsymbol: shape=circle linecolor=black radius=0.03 fillcolor=yellow
+select: @@1 = MPI_Init
+linedetails: color=purple
+legendlabel: MPI_Init
+pointsymbol: shape=circle linecolor=black radius=0.03 fillcolor=purple
  
 #proc legend
 location: max-0.5 max-0.5

@@ -1,0 +1,30 @@
+#proc page
+                                                                                
+#proc areadef
+  rectangle: 0 0 2.5 2
+  xrange: 0 1
+  yrange: 0 1
+//  xaxis.tics: none
+//  yaxis.tics: none
+//  xaxis.stubhide: yes
+//  yaxis.stubhide: yes
+                                                                                
+#proc getdata
+ data:
+MPI_Gatherv 0.221331 red MPI_Gatherv
+MPI_Comm_rank 5.9604e-06 green MPI_Comm_rank
+MPI_Init 0 blue MPI_Init
+MPI_Comm_size 0 yellow MPI_Comm_size
+MPI_Finalize 0 purple MPI_Finalize
+ 
+#proc pie
+ firstslice: 0
+ datafield: 2
+ labelfield: 1
+ exactcolorfield: 3
+ center: 0.5(s) 0.6(s)
+ radius: 0.4(s)
+  
+#proc legend
+ location: 1.1(s) 1.2(s)
+ 
