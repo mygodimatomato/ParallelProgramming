@@ -69,6 +69,7 @@ int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+    double start_time = MPI_Wtime();
     
     // since the data is 1D, we split the data by rank + size * i
     // mygodimatomato : did not handle the situation of size > whole_len, don't think it will happen
@@ -235,6 +236,7 @@ int main(int argc, char** argv) {
 
     // printf("thread %d, len = %d\n", rank, process_whole_len);
     // send the data back to rank 0
+     
     MPI_Gatherv(localImage, process_whole_len, MPI_INT, tmp, recvcounts, displacements, MPI_INT, 0, MPI_COMM_WORLD);
     // free(localImage);
 
@@ -252,6 +254,9 @@ int main(int argc, char** argv) {
         write_png(filename, iters, width, height, fullImage);
         // for(int i = 0; i < whole_len; i++)
         //     printf("i = %d, %d\n",i, fullImage[i]);
+        double end_time = MPI_Wtime();
+        double elapsed_time = end_time - start_time;
+        printf("Time taken: %f seconds\n", elapsed_time);
     }
     MPI_Finalize();
     free(fullImage);
