@@ -12,6 +12,7 @@
 
 /* Hint 7 */
 // this variable is used by device
+__constant__ int const_mask[MASK_N][MASK_X][MASK_Y];
 int mask[MASK_N][MASK_X][MASK_Y] = { 
     {{ -1, -4, -6, -4, -1},
      { -2, -8,-12, -8, -2},
@@ -99,71 +100,71 @@ void write_png(const char* filename, png_bytep image, const unsigned height, con
 
 /* Hint 5 */
 // this function is called by host and executed by device
-void sobel (unsigned char* s, unsigned char* t, unsigned height, unsigned width, unsigned channels) {
-    int  x, y, i, v, u;
-    int  R, G, B;
-    double val[MASK_N*3] = {0.0};
-    int adjustX, adjustY, xBound, yBound;
+// void sobel (unsigned char* s, unsigned char* t, unsigned height, unsigned width, unsigned channels) {
+//     int  x, y, i, v, u;
+//     int  R, G, B;
+//     double val[MASK_N*3] = {0.0};
+//     int adjustX, adjustY, xBound, yBound;
 
-    /* Hint 6 */
-    // parallel job by blockIdx, blockDim, threadIdx 
-    for (y = 0; y < height; ++y) {
-        for (x = 0; x < width; ++x) {
-            for (i = 0; i < MASK_N; ++i) {
-                adjustX = (MASK_X % 2) ? 1 : 0;
-                adjustY = (MASK_Y % 2) ? 1 : 0;
-                xBound = MASK_X /2;
-                yBound = MASK_Y /2;
+//     /* Hint 6 */
+//     // parallel job by blockIdx, blockDim, threadIdx 
+//     for (y = 0; y < height; ++y) {
+//         for (x = 0; x < width; ++x) {
+//             for (i = 0; i < MASK_N; ++i) {
+//                 adjustX = (MASK_X % 2) ? 1 : 0;
+//                 adjustY = (MASK_Y % 2) ? 1 : 0;
+//                 xBound = MASK_X /2;
+//                 yBound = MASK_Y /2;
 
-                val[i*3+2] = 0.0;
-                val[i*3+1] = 0.0;
-                val[i*3] = 0.0;
+//                 val[i*3+2] = 0.0;
+//                 val[i*3+1] = 0.0;
+//                 val[i*3] = 0.0;
 
-                for (v = -yBound; v < yBound + adjustY; ++v) {
-                    for (u = -xBound; u < xBound + adjustX; ++u) {
-                        if ((x + u) >= 0 && (x + u) < width && y + v >= 0 && y + v < height) {
-                            R = s[channels * (width * (y+v) + (x+u)) + 2];
-                            G = s[channels * (width * (y+v) + (x+u)) + 1];
-                            B = s[channels * (width * (y+v) + (x+u)) + 0];
-                            val[i*3+2] += R * mask[i][u + xBound][v + yBound];
-                            val[i*3+1] += G * mask[i][u + xBound][v + yBound];
-                            val[i*3+0] += B * mask[i][u + xBound][v + yBound];
-                        }    
-                    }
-                }
-            }
+//                 for (v = -yBound; v < yBound + adjustY; ++v) {
+//                     for (u = -xBound; u < xBound + adjustX; ++u) {
+//                         if ((x + u) >= 0 && (x + u) < width && y + v >= 0 && y + v < height) {
+//                             R = s[channels * (width * (y+v) + (x+u)) + 2];
+//                             G = s[channels * (width * (y+v) + (x+u)) + 1];
+//                             B = s[channels * (width * (y+v) + (x+u)) + 0];
+//                             val[i*3+2] += R * mask[i][u + xBound][v + yBound];
+//                             val[i*3+1] += G * mask[i][u + xBound][v + yBound];
+//                             val[i*3+0] += B * mask[i][u + xBound][v + yBound];
+//                         }    
+//                     }
+//                 }
+//             }
 
-            double totalR = 0.0;
-            double totalG = 0.0;
-            double totalB = 0.0;
-            for (i = 0; i < MASK_N; ++i) {
-                totalR += val[i * 3 + 2] * val[i * 3 + 2];
-                totalG += val[i * 3 + 1] * val[i * 3 + 1];
-                totalB += val[i * 3 + 0] * val[i * 3 + 0];
-            }
+//             double totalR = 0.0;
+//             double totalG = 0.0;
+//             double totalB = 0.0;
+//             for (i = 0; i < MASK_N; ++i) {
+//                 totalR += val[i * 3 + 2] * val[i * 3 + 2];
+//                 totalG += val[i * 3 + 1] * val[i * 3 + 1];
+//                 totalB += val[i * 3 + 0] * val[i * 3 + 0];
+//             }
 
-            totalR = sqrt(totalR) / SCALE;
-            totalG = sqrt(totalG) / SCALE;
-            totalB = sqrt(totalB) / SCALE;
-            const unsigned char cR = (totalR > 255.0) ? 255 : totalR;
-            const unsigned char cG = (totalG > 255.0) ? 255 : totalG;
-            const unsigned char cB = (totalB > 255.0) ? 255 : totalB;
-            t[channels * (width * y + x) + 2] = cR;
-            t[channels * (width * y + x) + 1] = cG;
-            t[channels * (width * y + x) + 0] = cB;
-        }
-    }
-}
+//             totalR = sqrt(totalR) / SCALE;
+//             totalG = sqrt(totalG) / SCALE;
+//             totalB = sqrt(totalB) / SCALE;
+//             const unsigned char cR = (totalR > 255.0) ? 255 : totalR;
+//             const unsigned char cG = (totalG > 255.0) ? 255 : totalG;
+//             const unsigned char cB = (totalB > 255.0) ? 255 : totalB;
+//             t[channels * (width * y + x) + 2] = cR;
+//             t[channels * (width * y + x) + 1] = cG;
+//             t[channels * (width * y + x) + 0] = cB;
+//         }
+//     }
+// }
 
-__global__ void sobelKernel(unsigned char* s, unsigned char* t, unsigned height, unsigned width, unsigned channels, int (*mask)[MASK_X][MASK_Y]) {
+__global__ void sobel_cuda(unsigned char* s, unsigned char* t, unsigned height, unsigned width, unsigned channels) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int i, v, u;
+    int R, G, B;
+    int adjustX, adjustY, xBound, yBound;
+    double val[MASK_N*3] = {0.0};
 
     if (x < width && y < height) {
-        int i, v, u;
-        int R, G, B;
-        double val[MASK_N*3] = {0.0};
-        int adjustX, adjustY, xBound, yBound;
 
         for (i = 0; i < MASK_N; ++i) {
             adjustX = (MASK_X % 2) ? 1 : 0;
@@ -181,9 +182,9 @@ __global__ void sobelKernel(unsigned char* s, unsigned char* t, unsigned height,
                         R = s[channels * (width * (y+v) + (x+u)) + 2];
                         G = s[channels * (width * (y+v) + (x+u)) + 1];
                         B = s[channels * (width * (y+v) + (x+u)) + 0];
-                        val[i*3+2] += R * mask[i][u + xBound][v + yBound];
-                        val[i*3+1] += G * mask[i][u + xBound][v + yBound];
-                        val[i*3+0] += B * mask[i][u + xBound][v + yBound];
+                        val[i*3+2] += R * const_mask[i][u + xBound][v + yBound];
+                        val[i*3+1] += G * const_mask[i][u + xBound][v + yBound];
+                        val[i*3+0] += B * const_mask[i][u + xBound][v + yBound];
                     }    
                 }
             }
@@ -225,26 +226,26 @@ int main(int argc, char** argv) {
     unsigned char* device_t;
     cudaMalloc((void **)&device_s, height * width * channels * sizeof(unsigned char));
     cudaMalloc((void **)&device_t, height * width * channels * sizeof(unsigned char));
+    
 
     /* Hint 2 */
     // cudaMemcpy(...) copy source image to device (filter matrix if necessary)
-    cudaMemcpy(devices_s, host_s, height * width * channels * sizeof(unsigned char), cudaMemcpyHostToDevice);
-
+    cudaMemcpy(device_s, host_s, height * width * channels * sizeof(unsigned char), cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(const_mask, mask, MASK_N * MASK_X * MASK_Y * sizeof(int));
 
     /* Hint 3 */
     // acclerate this function
     dim3 dimBlock(16, 16);
     dim3 dimGrid((width + dimBlock.x - 1) / dimBlock.x, (height + dimBlock.y - 1) / dimBlock.y);
-    sobel_cuda <<< dimGrid, dimBlock >>> (device_s, device_t, height, width, channels, mask);
+    sobel_cuda <<< dimGrid, dimBlock >>> (device_s, device_t, height, width, channels);
     
     /* Hint 4 */
     // cudaMemcpy(...) copy result image to host
-    cudaMemcpy(host_t, devices_t, height * width * channels * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+    cudaMemcpy(host_t, device_t, height * width * channels * sizeof(unsigned char), cudaMemcpyDeviceToHost);
     write_png(argv[2], host_t, height, width, channels);
 
-    cudaFree(devices_s);
-    cudaFree(devices_t);
-    cudaFree(device_mask);
+    cudaFree(device_s);
+    cudaFree(device_t);
 
     return 0;
 }
