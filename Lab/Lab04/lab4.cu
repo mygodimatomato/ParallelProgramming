@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
     cudaMemcpy(dsrc, src, height * width * channels * sizeof(unsigned char), cudaMemcpyHostToDevice);
 
     // decide to use how many blocks and threads
-    const int num_threads = 256;
+    const int num_threads = (16, 16);
     // const int num_blocks = height / num_threads + 1;
     const int num_blocks2 = width / num_threads + 1;
 
