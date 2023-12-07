@@ -99,10 +99,56 @@ inline __device__ int bound_check(int val, int lower, int upper) {
     else
         return 0;
 }
+__global__ void coalesced_sobel(unsigned char *s, unsigned char *t, unsigned height, unsigned width, unsigned channels) {
+    int tid = (blockIdx.x * blockDim.x + threadIdx.x) * 3; // go from 0 to height - 1
+    double val[Z][3];
+
+    if (tid >= width) return;
+
+    int x = tid;
+    for (int y = 0; y < height; ++x) {
+        for (int i = 0; i < Z; ++i) {
+            
+            val[i][2] = 0.;
+            val[i][1] = 0.;
+            val[i][0] = 0.;
+
+            for (int v = -yBound; v <= yBound; ++v) {
+                for (int u = -xBound; u <= xBound; ++u) {
+                    if (bound_check(x + u, 0, width) && bound_check(y + v, 0, height)) {
+                        const unsigned char R = s[channels * (width * (y + v) + (x + u)) + 2];
+                        const unsigned char G = s[channels * (width * (y + v) + (x + u)) + 1];
+                        const unsigned char B = s[channels * (width * (y + v) + (x + u)) + 0];
+                        val[i][2] += R * mask[i][u + xBound][v + yBound];
+                        val[i][1] += G * mask[i][u + xBound][v + yBound];
+                        val[i][0] += B * mask[i][u + xBound][v + yBound];
+                    }
+                }
+            }
+        }
+        double totalR = 0.;
+        double totalG = 0.;
+        double totalB = 0.;
+        for (int i = 0; i < Z; ++i) {
+            totalR += val[i][2] * val[i][2];
+            totalG += val[i][1] * val[i][1];
+            totalB += val[i][0] * val[i][0];
+        }
+        totalR = sqrt(totalR) / SCALE;
+        totalG = sqrt(totalG) / SCALE;
+        totalB = sqrt(totalB) / SCALE;
+        const unsigned char cR = (totalR > 255.) ? 255 : totalR;
+        const unsigned char cG = (totalG > 255.) ? 255 : totalG;
+        const unsigned char cB = (totalB > 255.) ? 255 : totalB;
+        t[channels * (width * y + x) + 2] = cR;
+        t[channels * (width * y + x) + 1] = cG;
+        t[channels * (width * y + x) + 0] = cB;
+    }
+}
 
 __global__ void sobel(unsigned char *s, unsigned char *t, unsigned height, unsigned width, unsigned channels) {
 
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x; // go from 0 to height - 1
     double val[Z][3];
     if (tid >= height) return;
 
@@ -149,6 +195,8 @@ __global__ void sobel(unsigned char *s, unsigned char *t, unsigned height, unsig
     }
 }
 
+
+
 int main(int argc, char **argv) {
     assert(argc == 3);
     unsigned height, width, channels;
@@ -174,10 +222,11 @@ int main(int argc, char **argv) {
     // decide to use how many blocks and threads
     const int num_threads = 256;
     const int num_blocks = height / num_threads + 1;
+    const int num_blocks2 = width / num_threads + 1;
 
     // launch cuda kernel
-    sobel << <num_blocks, num_threads>>> (dsrc, ddst, height, width, channels);
-
+    // sobel << <num_blocks, num_threads>>> (dsrc, ddst, height, width, channels);
+    coalesced_sobel << num_blocks2, num_threads >>> (dsrc, ddst, height, width, channels);
     // cudaMemcpy(...) copy result image to host
     cudaMemcpy(dst, ddst, height * width * channels * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 
