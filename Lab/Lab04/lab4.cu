@@ -100,7 +100,7 @@ inline __device__ int bound_check(int val, int lower, int upper) {
         return 0;
 }
 __global__ void coalesced_sobel(unsigned char *s, unsigned char *t, unsigned height, unsigned width, unsigned channels) {
-    int tid = (blockIdx.x * blockDim.x + threadIdx.x) * 3; // go from 0 to height - 1
+    int tid = blockIdx.x * blockDim.x + threadIdx.x; // go from 0 to height - 1
     double val[Z][3];
 
     if (tid >= width) return;
@@ -221,7 +221,7 @@ int main(int argc, char **argv) {
 
     // decide to use how many blocks and threads
     const int num_threads = 256;
-    const int num_blocks = height / num_threads + 1;
+    // const int num_blocks = height / num_threads + 1;
     const int num_blocks2 = width / num_threads + 1;
 
     // launch cuda kernel
