@@ -156,7 +156,7 @@ void write_png(const char* filename, png_bytep image, const unsigned height, con
 //     }
 // }
 
-__global__ void sobel_cuda(unsigned char* s, unsigned char* t, unsigned height, unsigned width, unsigned channels) {
+__global__ void sobel(unsigned char* s, unsigned char* t, unsigned height, unsigned width, unsigned channels) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int i, v, u;
@@ -237,7 +237,7 @@ int main(int argc, char** argv) {
     // acclerate this function
     dim3 dimBlock(16, 16);
     dim3 dimGrid((width + dimBlock.x - 1) / dimBlock.x, (height + dimBlock.y - 1) / dimBlock.y);
-    sobel_cuda <<< dimGrid, dimBlock >>> (device_s, device_t, height, width, channels);
+    sobel <<< dimGrid, dimBlock >>> (device_s, device_t, height, width, channels);
     
     /* Hint 4 */
     // cudaMemcpy(...) copy result image to host

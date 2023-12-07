@@ -3,6 +3,7 @@
 #include <cassert>
 #include <zlib.h>
 #include <png.h>
+#include <cuda_fp16.h>
 
 #define Z 2
 #define Y 5
@@ -99,103 +100,53 @@ inline __device__ int bound_check(int val, int lower, int upper) {
     else
         return 0;
 }
-__global__ void coalesced_sobel(unsigned char *s, unsigned char *t, unsigned height, unsigned width, unsigned channels) {
-    int tid = blockIdx.x * blockDim.x + threadIdx.x; // go from 0 to height - 1
-    double val[Z][3];
+__global__ void sobel(unsigned char *s, unsigned char *t, unsigned height, unsigned width, unsigned channels) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x; // go from 0 to width - 1
+    __half val[Z][3];
+    __half zero = __float2half(0.0f);
 
     if (tid >= width) return;
 
     int x = tid;
-    for (int y = 0; y < height; ++x) {
+    for (int y = 0; y < height; ++y) {
         for (int i = 0; i < Z; ++i) {
             
-            val[i][2] = 0.;
-            val[i][1] = 0.;
-            val[i][0] = 0.;
+            val[i][2] = zero;
+            val[i][1] = zero;
+            val[i][0] = zero;
 
             for (int v = -yBound; v <= yBound; ++v) {
                 for (int u = -xBound; u <= xBound; ++u) {
                     if (bound_check(x + u, 0, width) && bound_check(y + v, 0, height)) {
-                        const unsigned char R = s[channels * (width * (y + v) + (x + u)) + 2];
-                        const unsigned char G = s[channels * (width * (y + v) + (x + u)) + 1];
-                        const unsigned char B = s[channels * (width * (y + v) + (x + u)) + 0];
-                        val[i][2] += R * mask[i][u + xBound][v + yBound];
-                        val[i][1] += G * mask[i][u + xBound][v + yBound];
-                        val[i][0] += B * mask[i][u + xBound][v + yBound];
+                        const __half R = __float2half((float)s[channels * (width * (y + v) + (x + u)) + 2]);
+                        const __half G = __float2half((float)s[channels * (width * (y + v) + (x + u)) + 1]);
+                        const __half B = __float2half((float)s[channels * (width * (y + v) + (x + u)) + 0]);
+                        val[i][2] = __hadd(val[i][2], __hmul(R, __float2half(mask[i][u + xBound][v + yBound])));
+                        val[i][1] = __hadd(val[i][1], __hmul(G, __float2half(mask[i][u + xBound][v + yBound])));
+                        val[i][0] = __hadd(val[i][0], __hmul(B, __float2half(mask[i][u + xBound][v + yBound])));
                     }
                 }
             }
         }
-        double totalR = 0.;
-        double totalG = 0.;
-        double totalB = 0.;
+        __half totalR = zero;
+        __half totalG = zero;
+        __half totalB = zero;
         for (int i = 0; i < Z; ++i) {
-            totalR += val[i][2] * val[i][2];
-            totalG += val[i][1] * val[i][1];
-            totalB += val[i][0] * val[i][0];
+            totalR = __hadd(totalR, __hmul(val[i][2], val[i][2]));
+            totalG = __hadd(totalG, __hmul(val[i][1], val[i][1]));
+            totalB = __hadd(totalB, __hmul(val[i][0], val[i][0]));
         }
-        totalR = sqrt(totalR) / SCALE;
-        totalG = sqrt(totalG) / SCALE;
-        totalB = sqrt(totalB) / SCALE;
-        const unsigned char cR = (totalR > 255.) ? 255 : totalR;
-        const unsigned char cG = (totalG > 255.) ? 255 : totalG;
-        const unsigned char cB = (totalB > 255.) ? 255 : totalB;
+        totalR = __hdiv(hsqrt(totalR), __float2half(SCALE));
+        totalG = __hdiv(hsqrt(totalG), __float2half(SCALE));
+        totalB = __hdiv(hsqrt(totalB), __float2half(SCALE));
+        const unsigned char cR = (__half2float(totalR) > 255.f) ? 255 : __half2float(totalR);
+        const unsigned char cG = (__half2float(totalG) > 255.f) ? 255 : __half2float(totalG);
+        const unsigned char cB = (__half2float(totalB) > 255.f) ? 255 : __half2float(totalB);
         t[channels * (width * y + x) + 2] = cR;
         t[channels * (width * y + x) + 1] = cG;
         t[channels * (width * y + x) + 0] = cB;
     }
 }
-
-__global__ void sobel(unsigned char *s, unsigned char *t, unsigned height, unsigned width, unsigned channels) {
-
-    int tid = blockIdx.x * blockDim.x + threadIdx.x; // go from 0 to height - 1
-    double val[Z][3];
-    if (tid >= height) return;
-
-    int y = tid;
-    for (int x = 0; x < width; ++x) {
-        /* Z axis of mask */
-        for (int i = 0; i < Z; ++i) {
-
-            val[i][2] = 0.;
-            val[i][1] = 0.;
-            val[i][0] = 0.;
-
-            /* Y and X axis of mask */
-            for (int v = -yBound; v <= yBound; ++v) {
-                for (int u = -xBound; u <= xBound; ++u) {
-                    if (bound_check(x + u, 0, width) && bound_check(y + v, 0, height)) {
-                        const unsigned char R = s[channels * (width * (y + v) + (x + u)) + 2];
-                        const unsigned char G = s[channels * (width * (y + v) + (x + u)) + 1];
-                        const unsigned char B = s[channels * (width * (y + v) + (x + u)) + 0];
-                        val[i][2] += R * mask[i][u + xBound][v + yBound];
-                        val[i][1] += G * mask[i][u + xBound][v + yBound];
-                        val[i][0] += B * mask[i][u + xBound][v + yBound];
-                    }
-                }
-            }
-        }
-        double totalR = 0.;
-        double totalG = 0.;
-        double totalB = 0.;
-        for (int i = 0; i < Z; ++i) {
-            totalR += val[i][2] * val[i][2];
-            totalG += val[i][1] * val[i][1];
-            totalB += val[i][0] * val[i][0];
-        }
-        totalR = sqrt(totalR) / SCALE;
-        totalG = sqrt(totalG) / SCALE;
-        totalB = sqrt(totalB) / SCALE;
-        const unsigned char cR = (totalR > 255.) ? 255 : totalR;
-        const unsigned char cG = (totalG > 255.) ? 255 : totalG;
-        const unsigned char cB = (totalB > 255.) ? 255 : totalB;
-        t[channels * (width * y + x) + 2] = cR;
-        t[channels * (width * y + x) + 1] = cG;
-        t[channels * (width * y + x) + 0] = cB;
-    }
-}
-
-
 
 int main(int argc, char **argv) {
     assert(argc == 3);
@@ -225,8 +176,8 @@ int main(int argc, char **argv) {
     const int num_blocks2 = width / num_threads + 1;
 
     // launch cuda kernel
-    // sobel << <num_blocks, num_threads>>> (dsrc, ddst, height, width, channels);
-    coalesced_sobel << num_blocks2, num_threads >>> (dsrc, ddst, height, width, channels);
+    // sobel <<<num_blocks2, num_threads>>> (dsrc, ddst, height, width, channels);
+    sobel <<< num_blocks2, num_threads >>> (dsrc, ddst, height, width, channels);
     // cudaMemcpy(...) copy result image to host
     cudaMemcpy(dst, ddst, height * width * channels * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 
