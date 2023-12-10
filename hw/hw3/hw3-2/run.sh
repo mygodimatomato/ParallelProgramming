@@ -1,0 +1,1 @@
+make && ./hw3-2 /tmp/dataset-nthu-pp23/pp23/share/hw3-2/cases/c02.1  ./out > hw3_2_std_out.m
