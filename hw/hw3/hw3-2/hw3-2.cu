@@ -65,37 +65,33 @@ __global__ void phase3(){
 }
 
 
-void block_FW() {
+void block_FW(int* d_dist) {
   int round = ceil(V, BLOCK_SIZE);
 
-  
+
   for (int r = 0; r < round; r++) {
-    phase1<<<>>>()
-    phase2<<<>>>
-    phase3<<<>>>
+    // phase1<<<>>>()
+    // phase2<<<>>>
+    // phase3<<<>>>
   }
 }
 
-// __global__ void phase1(){
-
-// }
-
-
-  
-
-
-
-  // Allocate memory for GPU
-
-  // start executing block floyed warshall algorithm
-  // for (int r = 0; r < round; r++) {
-  //   phase1<<<>>>();
-  //   phase2<<<>>>();
-  //   phase3<<<>>>();
-  // }
 
 int main(int argc, char* argv[]) {
+  // Read input from input file
   input(argv[1]);
+
+  // Allocate the memory for the matrix in GPU
+  int *d_dist;
+  cudaMalloc((void**)&d_dist, sizeof(int) * matrix_size * matrix_size);
+  cudaMemcpy(d_dist, adjacency_matrix, sizeof(int) * matrix_size * matrix_size, cudaMemcpyHostToDevice);
+
+  // Start executing the block Floyed-Warshall
+  block_FW(d_dist);
+
+  // Copy the outcome back to the adjacency_matrix 
+  cudaMemcpy(adjacency_matrix, d_dist, sizeof(int) * matrix_size * matrix_size, cudaMemcpyDeviceToHost);
+
 
   // mygodimatomato : for checking
   for (int i = 0; i < V; i++) {
@@ -107,7 +103,7 @@ int main(int argc, char* argv[]) {
     } printf("\n");
   }
 
-  block_FW();
+  // Write output to output file
   output(argv[2]);
   return 0;
 }
