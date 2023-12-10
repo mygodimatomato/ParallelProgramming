@@ -1,6 +1,6 @@
 NVCCFLAGS  = -O3 -std=c++11 -Xptxas=-v -arch=sm_61
 NVCC     = nvcc 
-LDFLAGS = -lpng -lz
+LDFLAGS = -lz
 
 TARGETS = hw3-2
 
