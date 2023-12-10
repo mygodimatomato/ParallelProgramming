@@ -1,83 +1,84 @@
-#include <iostream>
-#include <fstream>
-#include <thread>
-#include <cstdlib>
-#include <omp.h>
-#include <vector>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <cmath>
 
-// MY_INF is 2^30-1
 #define MY_INF 1073741823
-
-using namespace std;
+#define BLOCK_SIZE 8
 
 int V, E;
 int *adjacency_matrix;
-int num_cpus;
+
+// __global__ void phase1(){
+
+// }
+
+// __global__ void phase2(){
+
+// }
+
+// __global__ void phase3(){
+
+// }
 
 int main(int argc, char *argv[]) {
 
-  // check the number of CPUs
-  char *cpus_env = std::getenv("SLURM_CPUS_PER_TASK");
-  num_cpus = atoi(cpus_env);
+  // process input 
+  FILE *input_file = fopen(argv[1], "r");
+  fread(&V, sizeof(int), 1, input_file);
+  fread(&E, sizeof(int), 1, input_file);
 
-  // read the file
-  char *input_file = argv[1];
-  char *output_file = argv[2];
+  int matrix_size = ((V / BLOCK_SIZE) + 1 ) * BLOCK_SIZE; // matrix size must be multiple of BLOCK_SIZE
+  adjacency_matrix = (int *)malloc(matrix_size * matrix_size * sizeof(int)); // set the matrix to 1D array for easier data transfer
 
-  fstream file;
-  file.open(input_file, ios::in | ios::binary);
-  file.read((char *)&V, sizeof(int));
-  file.read((char *)&E, sizeof(int));
+  cudaMallocHost((void **)&adjacency_matrix, matrix_size * matrix_size * sizeof(int)); // pinned memory for faster data transfer
 
-  adjacency_matrix = new int[V*V];
-  // initialize the adjacency matrix
-
-  #pragma omp parallel num_threads(num_cpus)
-  {
-    #pragma omp for schedule(static) collapse(2)
-    for (int i = 0; i < V; i++) {
-      for (int j = 0; j < V; j++) {
-        if (i == j)
-          adjacency_matrix[i*V+j] = 0;
-        else
-          adjacency_matrix[i*V+j] = MY_INF;
-      }
+  for(int i = 0; i < matrix_size; i++) {
+    for(int j = 0; j < matrix_size; j++) {
+      if (i == j)
+        adjacency_matrix[i * matrix_size + j] = 0;
+      else 
+        adjacency_matrix[i * matrix_size + j] = MY_INF;
     }
   }
 
-  // read the edges
-  for (int i = 0; i < E; i++) {
-    int source, destination, weight;
-    file.read((char *)&source, sizeof(int));
-    file.read((char *)&destination, sizeof(int));
-    file.read((char *)&weight, sizeof(int));
-    adjacency_matrix[source*V+destination] = weight;
+  int edge[3];
+  for(int i = 0; i < E; i++) {
+    fread(edge, sizeof(int), 3, input_file);
+    adjacency_matrix[edge[0] * matrix_size + edge[1]] = edge[2];
   }
+  // finish processing input
 
-
-  for (int k = 0; k < V; k++) {
-    #pragma omp parallel num_threads(num_cpus)
-    {
-      #pragma omp for schedule(static) collapse(2)
-      for (int i = 0; i < V; i++) {
-        for (int j = 0; j < V; j++) {
-          if (j == k || j == i) continue;
-          if (adjacency_matrix[i*V+k] + adjacency_matrix[k*V+j] < adjacency_matrix[i*V+j])
-            adjacency_matrix[i*V+j] = adjacency_matrix[i*V+k] + adjacency_matrix[k*V+j];
-        }
-      }
-    }
-  }
-
-
-  // write the result to the output file
-  fstream output;
-  output.open(output_file, ios::out | ios::binary);
+  
+  // mygodimatomato : for checking
   for (int i = 0; i < V; i++) {
     for (int j = 0; j < V; j++)
-      output.write((char*)(&adjacency_matrix[i*V+j]), sizeof(int));
+      printf("%d ", adjacency_matrix[i * matrix_size + j]);
+    printf("\n");
   }
+
+
+  // Allocate memory for GPU
+
+  // start executing block floyed warshall algorithm
+  // for (int r = 0; r < round; r++) {
+  //   phase1<<<>>>();
+  //   phase2<<<>>>();
+  //   phase3<<<>>>();
+  // }
+
+
+  // process output
+  FILE *output_file = fopen(argv[2], "w");
+  for (int i = 0; i < V; i++) {
+    for (int j = 0; j < V; j++)
+      fwrite(&adjacency_matrix[i * matrix_size + j], sizeof(int), 1, output_file);
+  }
+  // finish processing output
+  
+
+  fclose(input_file);
+  fclose(output_file);
+  free(adjacency_matrix);
 
   return 0;
 }
