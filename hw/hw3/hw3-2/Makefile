@@ -1,15 +1,14 @@
-NVCCFLAGS  = -O3 -std=c++11 -Xptxas=-v -arch=sm_61
-NVCC     = nvcc 
-LDFLAGS = -lz
+NVFLAGS  := -std=c++11 -O3 -Xptxas="-v" -arch=sm_61 
+LDFLAGS  := -lm
+EXES     := hw3-2
 
-TARGETS = hw3-2
+alls: $(EXES)
 
-.PHONY: all
-all: $(TARGETS)
-
-%: %.cu
-	$(NVCC) $(NVCCFLAGS) $(LDFLAGS) -o $@ $<
-
-.PHONY: clean
 clean:
-	rm -f $(TARGETS)
+	rm -f $(EXES)
+
+seq: seq.cc
+	g++ $(CXXFLAGS) -o $@ $?
+
+hw3-2: hw3-2.cu
+	nvcc $(NVFLAGS) $(LDFLAGS) -o $@ $?
