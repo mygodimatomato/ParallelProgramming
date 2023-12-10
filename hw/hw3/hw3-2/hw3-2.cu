@@ -8,13 +8,14 @@
 int V, E;
 int matrix_size;
 int *adjacency_matrix;
+size_t result;
 
 int ceil(int a, int b) { return (a + b - 1) / b; }
 
 void input(char* infile) {
   FILE *input_file = fopen(infile, "rb");
-  fread(&V, sizeof(int), 1, input_file);
-  fread(&E, sizeof(int), 1, input_file);
+  result = fread(&V, sizeof(int), 1, input_file);
+  result = fread(&E, sizeof(int), 1, input_file);
   
   matrix_size = ((V / BLOCK_SIZE) + 1 ) * BLOCK_SIZE; // matrix size must be multiple of BLOCK_SIZE
 
@@ -34,7 +35,7 @@ void input(char* infile) {
 
   int edge[3];
   for(int i = 0; i < E; i++) {
-    fread(edge, sizeof(int), 3, input_file);
+    result = fread(edge, sizeof(int), 3, input_file);
     adjacency_matrix[edge[0] * matrix_size + edge[1]] = edge[2];
   }
   fclose(input_file);
@@ -46,9 +47,12 @@ void output(char* outFileName){
     for (int j = 0; j < V; j++) {
       if (adjacency_matrix[i * matrix_size + j] > MY_INF)
         adjacency_matrix[i*matrix_size + j] = MY_INF;
-      fwrite(&adjacency_matrix[i * matrix_size + j], sizeof(int), 1, outfile);
+      if (i != 0)
+        adjacency_matrix[i * V + j] = adjacency_matrix[i * matrix_size + j];
     }
   }
+
+  fwrite(adjacency_matrix, sizeof(int), V * V, outfile);
   fclose(outfile);
 }
 
@@ -92,7 +96,6 @@ int main(int argc, char* argv[]) {
   // Copy the outcome back to the adjacency_matrix 
   cudaMemcpy(adjacency_matrix, d_dist, sizeof(int) * matrix_size * matrix_size, cudaMemcpyDeviceToHost);
 
-
   // mygodimatomato : for checking
   for (int i = 0; i < V; i++) {
     for (int j = 0; j < V; j++){
@@ -101,9 +104,22 @@ int main(int argc, char* argv[]) {
       else 
         printf("%3d ", adjacency_matrix[i * matrix_size + j]);
     } printf("\n");
-  }
+  } printf("\n");
+  
+  output(argv[2]);
+
+  // mygodimatomato : for checking
+  int k = 0;
+  for (int i = 0; i < V; i++) {
+    for (int j = 0; j < V; j++){
+      if(adjacency_matrix[k] >= MY_INF)
+        printf("INF ");
+      else
+        printf("%3d ", adjacency_matrix[k]);
+      k++;
+    } printf("\n");
+  } printf("\n");
 
   // Write output to output file
-  output(argv[2]);
   return 0;
 }
