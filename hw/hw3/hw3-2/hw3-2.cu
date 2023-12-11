@@ -85,13 +85,13 @@ __global__ void phase1(int* d_dist, int r, int* d_check){
   d_dist[(i+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = shared_memory[i * BLOCK_SIZE + j];
 }
 
-__global__ void phase2(){
+__global__ void phase2(int* d_dist, int r){
   int j = threadIdx.x;
   int i = threadIdx.y;
 
 }
 
-__global__ void phase3(){
+__global__ void phase3(int* d_dist, int r){
 
 }
 

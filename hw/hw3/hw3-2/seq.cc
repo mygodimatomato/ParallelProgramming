@@ -75,10 +75,10 @@ void block_FW(int B) {
         cal(B, r, r, r, 1, 1);
 
         /* Phase 2*/
-        // cal(B, r, r, 0, r, 1);
-        // cal(B, r, r, r + 1, round - r - 1, 1);
-        // cal(B, r, 0, r, 1, r);
-        // cal(B, r, r + 1, r, 1, round - r - 1);
+        cal(B, r, r, 0, r, 1);
+        cal(B, r, r, r + 1, round - r - 1, 1);
+        cal(B, r, 0, r, 1, r);
+        cal(B, r, r + 1, r, 1, round - r - 1);
 
         /* Phase 3*/
         // cal(B, r, 0, 0, r, r);
