@@ -59,8 +59,8 @@ void output(char* outFileName){
 
 __global__ void phase1(int* d_dist, int r, int* d_check){
   // Get index
-  int i = threadIdx.x;
-  int j = threadIdx.y;
+  int j = threadIdx.x;
+  int i = threadIdx.y;
   
   // Copy data from global memory to shared memory
   extern __shared__ int shared_memory[];
