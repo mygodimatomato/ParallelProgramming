@@ -86,6 +86,8 @@ __global__ void phase1(int* d_dist, int r, int* d_check){
 }
 
 __global__ void phase2(){
+  int j = threadIdx.x;
+  int i = threadIdx.y;
 
 }
 
