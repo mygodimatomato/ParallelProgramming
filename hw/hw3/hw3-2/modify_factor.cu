@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define BLK_FAC 32
+#define BLK_FAC 8
 
 const int INF = ((1 << 30) - 1);
 const int V = 50010;
