@@ -44,12 +44,16 @@ void input(char* infile) {
 
 void output(char* outFileName){
   FILE* outfile = fopen(outFileName, "w");
+  // for (int i = 0; i < V; i++) {
+  //   for (int j = 0; j < V; j++) {
+      
+  //   }
+  // }
   for (int i = 0; i < V; i++) {
     for (int j = 0; j < V; j++) {
-      if (adjacency_matrix[i * matrix_size + j] > MY_INF)
+      if (adjacency_matrix[i * matrix_size + j] >= MY_INF)
         adjacency_matrix[i*matrix_size + j] = MY_INF;
-      if (i != 0)
-        adjacency_matrix[i * V + j] = adjacency_matrix[i * matrix_size + j];
+      adjacency_matrix[i * V + j] = adjacency_matrix[i * matrix_size + j];
     }
   }
 
@@ -155,7 +159,7 @@ void block_FW(int* d_dist, int* d_check) {
   dim3 phase2_num_blocks(2, round); // one for col, one for row, one block will be redundant, but for the whole performance it doesn't really matters
   dim3 phase3_num_blocks(round, round);
 
-  round = 1; // mygodimatomato: for checking
+  // round = 1; // mygodimatomato: for checking
   for (int r = 0; r < round; r++) {
     phase1<<<1, num_threads, BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r, d_check);
     phase2<<<phase2_num_blocks, num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r, d_check);
@@ -201,15 +205,15 @@ int main(int argc, char* argv[]) {
 
   // mygodimatomato : for checking
   int k = 0;
-  // for (int i = 0; i < V; i++) {
-  //   for (int j = 0; j < V; j++){
-  //     if(adjacency_matrix[k] == MY_INF)
-  //       printf(" INF ");
-  //     else
-  //       printf("%4d ", adjacency_matrix[k]);
-  //     k++;
-  //   } printf("\n");
-  // } printf("\n");
+  for (int i = 0; i < V; i++) {
+    for (int j = 0; j < V; j++){
+      if(adjacency_matrix[k] == MY_INF)
+        printf(" INF ");
+      else
+        printf("%4d ", adjacency_matrix[k]);
+      k++;
+    } printf("\n");
+  } printf("\n");
 
   // for(int i = 0; i <BLOCK_SIZE;i++){
   //   for(int j = 0; j <BLOCK_SIZE; j++){

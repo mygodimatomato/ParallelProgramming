@@ -207,7 +207,7 @@ void block_FW(int* d_dist) {
     dim3 p2_blks_per_grid(2, round - 1); // 2: 1 for row, 1 for col; round - 1: # of (blks in row(or col) - pivot blk)
     dim3 p3_blks_per_grid(round - 1, round - 1);
 
-    round = 1;
+    // round = 1;
     for (int r = 0; r < round; ++r) {
         phase1<<<1, thds_per_blk, s_mem_size>>>(d_dist, r);
         phase2<<<p2_blks_per_grid, thds_per_blk, 2 * s_mem_size>>>(d_dist, r);
