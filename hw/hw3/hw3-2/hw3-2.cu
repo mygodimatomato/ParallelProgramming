@@ -147,17 +147,19 @@ __global__ void phase3(int* d_dist, int r, int* d_check){
 }
 
 
-void block_FW(int* d_dist, int* d_check) {
-  int round = ceil(V, BLOCK_SIZE);
-  dim3 num_threads(BLOCK_SIZE, BLOCK_SIZE);
+void block_FW(int* d_dist) {
+  int round = matrix_size/BLOCK_SIZE;
   dim3 phase2_num_blocks(2, round); // one for col, one for row, one block will be redundant, but for the whole performance it doesn't really matters
   dim3 phase3_num_blocks(round, round);
+  dim3 num_threads(BLOCK_SIZE, BLOCK_SIZE);
+  dim3 phase2_num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
+  dim3 phase3_num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
 
   // round = 1; // mygodimatomato: for checking
   for (int r = 0; r < round; r++) {
     phase1<<<1, num_threads, BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
-    phase2<<<phase2_num_blocks, num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
-    phase3<<<phase3_num_blocks, num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r, d_check);
+    phase2<<<phase2_num_blocks, phase2_num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
+    phase3<<<phase3_num_blocks, phase3_num_threads, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
   }
 }
 
