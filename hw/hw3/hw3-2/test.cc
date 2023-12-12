@@ -5,10 +5,10 @@ using namespace std;
 #define BLOCK_SIZE 8
 
 int main() {
-    const int matrix_size = 16;
+    const int matrix_size = 24;
     int matrix[matrix_size*matrix_size];
     const int share_size = 8;
-    int share[share_size*share_size];
+    int share[3*share_size*share_size];
 
     // Filling the matrix with values from 1 to 100
     for(int i = 0; i < matrix_size*matrix_size; ++i) {
@@ -22,7 +22,9 @@ int main() {
     }cout << endl;
 
 
-    for(int r = 0; r < 2; r++){
+    for(int r = 0; r < 3; r++){
+        int x_offset = BLOCK_SIZE * r;
+        int y_offset = 
         for(int y = 0; y < 8; y++){
             for(int x = 0; x < 8; x++){
                 share[x + y * BLOCK_SIZE] = matrix[(x+r*BLOCK_SIZE) + (y+r*BLOCK_SIZE) * matrix_size];

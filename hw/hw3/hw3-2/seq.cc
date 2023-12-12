@@ -20,9 +20,9 @@ int main(int argc, char* argv[]) {
     for(int i = 0; i < n; i++){
         for(int j = 0; j < n; j++){
             if (Dist[i][j] >= INF)
-                printf("INF ");
+                printf(" INF ");
             else 
-                printf("%3d ", Dist[i][j]);
+                printf("%4d ", Dist[i][j]);
         }printf("\n");
     }
     output(argv[2]);
@@ -67,7 +67,7 @@ int ceil(int a, int b) { return (a + b - 1) / b; }
 
 void block_FW(int B) {
     int round = ceil(n, B);
-    round=1;
+    round=3;
     for (int r = 0; r < round; ++r) {
         printf("%d %d\n", r, round);
         fflush(stdout);
@@ -81,10 +81,10 @@ void block_FW(int B) {
         cal(B, r, r + 1, r, 1, round - r - 1);
 
         /* Phase 3*/
-        // cal(B, r, 0, 0, r, r);
-        // cal(B, r, 0, r + 1, round - r - 1, r);
-        // cal(B, r, r + 1, 0, r, round - r - 1);
-        // cal(B, r, r + 1, r + 1, round - r - 1, round - r - 1);
+        cal(B, r, 0, 0, r, r);
+        cal(B, r, 0, r + 1, round - r - 1, r);
+        cal(B, r, r + 1, 0, r, round - r - 1);
+        cal(B, r, r + 1, r + 1, round - r - 1, round - r - 1);
     }
 }
 

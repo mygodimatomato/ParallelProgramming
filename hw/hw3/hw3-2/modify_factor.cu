@@ -207,6 +207,7 @@ void block_FW(int* d_dist) {
     dim3 p2_blks_per_grid(2, round - 1); // 2: 1 for row, 1 for col; round - 1: # of (blks in row(or col) - pivot blk)
     dim3 p3_blks_per_grid(round - 1, round - 1);
 
+    round = 1;
     for (int r = 0; r < round; ++r) {
         phase1<<<1, thds_per_blk, s_mem_size>>>(d_dist, r);
         phase2<<<p2_blks_per_grid, thds_per_blk, 2 * s_mem_size>>>(d_dist, r);
@@ -236,6 +237,15 @@ int main(int argc, char* argv[]) {
 
     // Copy data from device to host
     cudaMemcpy(h_dist, d_dist, sizeof(int) * mtx_size * mtx_size, cudaMemcpyDeviceToHost);
+
+    for (int i = 0; i < vtx_num; i++) {
+        for (int j = 0; j < vtx_num; j++){
+        if(h_dist[i * mtx_size + j] == INF)
+            printf(" INF ");
+        else 
+            printf("%4d ", h_dist[i * mtx_size + j]);
+        } printf("\n");
+    } printf("\n");
 
     // Write output
     output(argv[2]);
