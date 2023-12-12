@@ -3,7 +3,7 @@
 #include <cmath>
 
 #define MY_INF 1073741823
-#define BLOCK_SIZE 64
+#define BLOCK_SIZE 32
 
 int V, E;
 int matrix_size;
@@ -70,16 +70,10 @@ __global__ void phase1(int* d_dist, int r){
   // D(i,j) = min(D(i,j), D(i,k)+D(k,j))
   #pragma unroll  // mygodimatomato: should changed by BLOCK_SIZE
   for(int k = 0; k < BLOCK_SIZE; k++){
-    int i_2_k_0 = shared_memory[(i+0) * BLOCK_SIZE + k];
-    int i_2_k_1 = shared_memory[(i+1) * BLOCK_SIZE + k];
-    int i_2_k_2 = shared_memory[(i+2) * BLOCK_SIZE + k];
-    int i_2_k_3 = shared_memory[(i+3) * BLOCK_SIZE + k];
-    int k_2_j = shared_memory[k * BLOCK_SIZE + j];
-
-    shared_memory[(i+0)*BLOCK_SIZE+j] = min(shared_memory[(i+0)*BLOCK_SIZE+j], i_2_k_0+k_2_j);
-    shared_memory[(i+1)*BLOCK_SIZE+j] = min(shared_memory[(i+1)*BLOCK_SIZE+j], i_2_k_1+k_2_j);
-    shared_memory[(i+2)*BLOCK_SIZE+j] = min(shared_memory[(i+2)*BLOCK_SIZE+j], i_2_k_2+k_2_j);
-    shared_memory[(i+3)*BLOCK_SIZE+j] = min(shared_memory[(i+3)*BLOCK_SIZE+j], i_2_k_3+k_2_j);
+    shared_memory[(i+0)*BLOCK_SIZE+j] = min(shared_memory[(i+0)*BLOCK_SIZE+j], shared_memory[(i+0) * BLOCK_SIZE + k] +  shared_memory[k * BLOCK_SIZE + j]);
+    shared_memory[(i+1)*BLOCK_SIZE+j] = min(shared_memory[(i+1)*BLOCK_SIZE+j], shared_memory[(i+1) * BLOCK_SIZE + k] + shared_memory[k * BLOCK_SIZE + j]);
+    shared_memory[(i+2)*BLOCK_SIZE+j] = min(shared_memory[(i+2)*BLOCK_SIZE+j], shared_memory[(i+2) * BLOCK_SIZE + k] + shared_memory[k * BLOCK_SIZE + j]);
+    shared_memory[(i+3)*BLOCK_SIZE+j] = min(shared_memory[(i+3)*BLOCK_SIZE+j], shared_memory[(i+3) * BLOCK_SIZE + k]+ shared_memory[k * BLOCK_SIZE + j]);
   }
 
   // writing data back to global memory
