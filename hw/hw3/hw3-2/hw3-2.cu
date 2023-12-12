@@ -148,7 +148,7 @@ __global__ void phase3(int* d_dist, int r, int* d_check){
 
 
 void block_FW(int* d_dist, int* d_check) {
-  int round = ceil(V, BLOCK_SIZE);
+  int round = matrix_size/BLOCK_SIZE;
   dim3 num_threads(BLOCK_SIZE, BLOCK_SIZE);
   dim3 phase2_num_blocks(2, round); // one for col, one for row, one block will be redundant, but for the whole performance it doesn't really matters
   dim3 phase3_num_blocks(round, round);
