@@ -3,7 +3,7 @@
 #include <cmath>
 
 #define MY_INF 1073741823
-#define BLOCK_SIZE 64
+#define BLOCK_SIZE 32
 
 int V, E;
 int matrix_size;
@@ -79,7 +79,7 @@ __global__ void phase1(int* d_dist, int r){
 }
 
 __global__ void phase2(int* d_dist, int r){
-  if (blockIdx.y == 0) return;
+  // if (blockIdx.y == 0) return;
   int j = threadIdx.x; // col index
   int i = threadIdx.y*4; // row index
   int i_offset = 0;
@@ -201,7 +201,7 @@ void block_FW(int* d_dist) {
   dim3 phase3_num_blocks(round, round);
   dim3 phase3_num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
 
-  round = 1; // mygodimatomato: for checking
+  // round = 1; // mygodimatomato: for checking
   for (int r = 0; r < round; r++) {
     phase1<<<1, num_threads, BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
     phase2<<<phase2_num_blocks, phase3_num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
@@ -230,16 +230,16 @@ int main(int argc, char* argv[]) {
   output(argv[2]);
 
   // mygodimatomato : for checking
-  // int k = 0;
-  // for (int i = 0; i < V; i++) {
-  //   for (int j = 0; j < V; j++){
-  //     if(adjacency_matrix[k] == MY_INF)
-  //       printf(" INF ");
-  //     else
-  //       printf("%4d ", adjacency_matrix[k]);
-  //     k++;
-  //   } printf("\n");
-  // } printf("\n");
+  int k = 0;
+  for (int i = 0; i < V; i++) {
+    for (int j = 0; j < V; j++){
+      if(adjacency_matrix[k] == MY_INF)
+        printf(" INF ");
+      else
+        printf("%4d ", adjacency_matrix[k]);
+      k++;
+    } printf("\n");
+  } printf("\n");
 
   // Write output to output file
   return 0;
