@@ -3,7 +3,7 @@
 #include <cmath>
 
 #define MY_INF 1073741823
-#define BLOCK_SIZE 32
+#define BLOCK_SIZE 64
 
 int V, E;
 int matrix_size;
@@ -16,7 +16,9 @@ void input(char* infile) {
   result = fread(&V, sizeof(int), 1, input_file);
   result = fread(&E, sizeof(int), 1, input_file);
   
-  matrix_size = ((V / BLOCK_SIZE) + 1 ) * BLOCK_SIZE; // matrix size must be multiple of BLOCK_SIZE
+  int remainder = V%128;
+  matrix_size = (remainder == 0) ? V : V + (128-remainder);
+  // matrix_size = ((V / BLOCK_SIZE) + 1 ) * BLOCK_SIZE; // matrix size must be multiple of BLOCK_SIZE
 
   adjacency_matrix = (int *)malloc(matrix_size * matrix_size * sizeof(int)); // set the matrix to 1D array for easier data transfer
 
