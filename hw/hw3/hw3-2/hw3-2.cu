@@ -3,7 +3,7 @@
 #include <cmath>
 
 #define MY_INF 1073741823
-#define BLOCK_SIZE 32
+#define BLOCK_SIZE 64
 
 int V, E;
 int matrix_size;
@@ -210,8 +210,6 @@ void block_FW(int* d_dist) {
   dim3 phase2_num_blocks(2, round); // one for col, one for row, one block will be redundant, but for the whole performance it doesn't really matters
   dim3 phase3_num_blocks(round, round);
   dim3 num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
-  dim3 phase2_num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
-  dim3 phase3_num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
 
   // round = 1; // mygodimatomato: for checking
   for (int r = 0; r < round; r++) {
