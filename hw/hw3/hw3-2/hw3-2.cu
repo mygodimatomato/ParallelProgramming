@@ -56,26 +56,37 @@ void output(char* outFileName){
 __global__ void phase1(int* d_dist, int r){
   // Get index
   int j = threadIdx.x;
-  int i = threadIdx.y;
+  int i = threadIdx.y*4;
   
   // Copy data from global memory to shared memory
   __shared__ int shared_memory[BLOCK_SIZE * BLOCK_SIZE];
-  shared_memory[i * BLOCK_SIZE + j] = d_dist[(i+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
+  shared_memory[(i+0) * BLOCK_SIZE + j] = d_dist[(i+0+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
+  shared_memory[(i+1) * BLOCK_SIZE + j] = d_dist[(i+1+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
+  shared_memory[(i+2) * BLOCK_SIZE + j] = d_dist[(i+2+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
+  shared_memory[(i+3) * BLOCK_SIZE + j] = d_dist[(i+3+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
   __syncthreads();
 
 
   // D(i,j) = min(D(i,j), D(i,k)+D(k,j))
   #pragma unroll  // mygodimatomato: should changed by BLOCK_SIZE
   for(int k = 0; k < BLOCK_SIZE; k++){
-    int i_2_k = shared_memory[i * BLOCK_SIZE + k];
+    int i_2_k_0 = shared_memory[(i+0) * BLOCK_SIZE + k];
+    int i_2_k_1 = shared_memory[(i+1) * BLOCK_SIZE + k];
+    int i_2_k_2 = shared_memory[(i+2) * BLOCK_SIZE + k];
+    int i_2_k_3 = shared_memory[(i+3) * BLOCK_SIZE + k];
     int k_2_j = shared_memory[k * BLOCK_SIZE + j];
 
-    if (i_2_k + k_2_j < shared_memory[i * BLOCK_SIZE + j])
-      shared_memory[i * BLOCK_SIZE + j] = i_2_k + k_2_j;
+    shared_memory[(i+0)*BLOCK_SIZE+j] = min(shared_memory[(i+0)*BLOCK_SIZE+j], i_2_k_0+k_2_j);
+    shared_memory[(i+1)*BLOCK_SIZE+j] = min(shared_memory[(i+1)*BLOCK_SIZE+j], i_2_k_1+k_2_j);
+    shared_memory[(i+2)*BLOCK_SIZE+j] = min(shared_memory[(i+2)*BLOCK_SIZE+j], i_2_k_2+k_2_j);
+    shared_memory[(i+3)*BLOCK_SIZE+j] = min(shared_memory[(i+3)*BLOCK_SIZE+j], i_2_k_3+k_2_j);
   }
 
   // writing data back to global memory
-  d_dist[(i+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = shared_memory[i * BLOCK_SIZE + j];
+  d_dist[(i+0+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = shared_memory[(i+0) * BLOCK_SIZE + j];
+  d_dist[(i+1+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = shared_memory[(i+1) * BLOCK_SIZE + j];
+  d_dist[(i+2+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = shared_memory[(i+2) * BLOCK_SIZE + j];
+  d_dist[(i+3+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = shared_memory[(i+3) * BLOCK_SIZE + j];
 }
 
 __global__ void phase2(int* d_dist, int r){
@@ -198,15 +209,15 @@ void block_FW(int* d_dist) {
   int round = matrix_size/BLOCK_SIZE;
   dim3 phase2_num_blocks(2, round); // one for col, one for row, one block will be redundant, but for the whole performance it doesn't really matters
   dim3 phase3_num_blocks(round, round);
-  dim3 num_threads(BLOCK_SIZE, BLOCK_SIZE);
+  dim3 num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
   dim3 phase2_num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
   dim3 phase3_num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
 
   // round = 1; // mygodimatomato: for checking
   for (int r = 0; r < round; r++) {
     phase1<<<1, num_threads, BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
-    phase2<<<phase2_num_blocks, phase2_num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
-    phase3<<<phase3_num_blocks, phase3_num_threads, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
+    phase2<<<phase2_num_blocks, num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
+    phase3<<<phase3_num_blocks, num_threads, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
   }
 }
 
