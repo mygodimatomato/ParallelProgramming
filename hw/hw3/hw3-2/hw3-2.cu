@@ -88,7 +88,7 @@ __global__ void phase2(int* d_dist, int r){
   // 0 : row block, 1 : col block, 2 : center block
   __shared__ int shared_memory[3 * BLOCK_SIZE * BLOCK_SIZE];
 
-  shared_memory[i * BLOCK_SIZE + j + (BLOCK_SIZE*BLOCK_SIZE)*2] = d_dist[(i+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
+  shared_memory[(i+BLOCK_SIZE*2) * BLOCK_SIZE + j] = d_dist[(i+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
 
   if (blockIdx.x == 1) { // col 
     i_offset = BLOCK_SIZE * blockIdx.y; 
@@ -98,24 +98,24 @@ __global__ void phase2(int* d_dist, int r){
     j_offset = BLOCK_SIZE * blockIdx.y;
   }
 
-  shared_memory[i * BLOCK_SIZE + j + (BLOCK_SIZE * BLOCK_SIZE) * blockIdx.x] = d_dist[(i+i_offset) * d_matrix_size + j + j_offset];
+  shared_memory[(i+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = d_dist[(i+i_offset) * d_matrix_size + j + j_offset];
   __syncthreads();
 
   #pragma unroll // mygodimatomato: should changed by BLOCK_SIZE
   for (int k = 0; k < BLOCK_SIZE; k++) {
     if (blockIdx.x == 0){
-      i_2_k = shared_memory[i * BLOCK_SIZE + k + (BLOCK_SIZE*BLOCK_SIZE)*2];
+      i_2_k = shared_memory[(i+BLOCK_SIZE*2) * BLOCK_SIZE + k];
       k_2_j = shared_memory[k * BLOCK_SIZE + j];
     } else {
-      i_2_k = shared_memory[i * BLOCK_SIZE + k + (BLOCK_SIZE * BLOCK_SIZE)];
-      k_2_j = shared_memory[k * BLOCK_SIZE + j + (BLOCK_SIZE*BLOCK_SIZE)*2];
+      i_2_k = shared_memory[(i+BLOCK_SIZE) * BLOCK_SIZE + k];
+      k_2_j = shared_memory[(k+BLOCK_SIZE*2) * BLOCK_SIZE + j];
     }
 
-    if (shared_memory[i * BLOCK_SIZE + j + (BLOCK_SIZE * BLOCK_SIZE) * blockIdx.x] > i_2_k + k_2_j)
-      shared_memory[i * BLOCK_SIZE + j + (BLOCK_SIZE * BLOCK_SIZE) * blockIdx.x] = i_2_k + k_2_j;
+    if (shared_memory[(i+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] > i_2_k + k_2_j)
+      shared_memory[(i+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = i_2_k + k_2_j;
   }
     
-  d_dist[(i+i_offset) * d_matrix_size + j + j_offset] = shared_memory[i * BLOCK_SIZE + j + (BLOCK_SIZE * BLOCK_SIZE) * blockIdx.x];
+  d_dist[(i+i_offset) * d_matrix_size + j + j_offset] = shared_memory[(i+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j];
 }
 
 __global__ void phase3(int* d_dist, int r){
