@@ -126,42 +126,34 @@ __global__ void phase3(int* d_dist, int r){
   __shared__ int row[BLOCK_SIZE][BLOCK_SIZE];
   __shared__ int col[BLOCK_SIZE][BLOCK_SIZE];
 
-  int i = threadIdx.y*4;
+  int i = threadIdx.y;
   int j = threadIdx.x;
 
   int i_offset = blockIdx.y * BLOCK_SIZE;
   int j_offset = blockIdx.x * BLOCK_SIZE;
   int block_round = r * BLOCK_SIZE;
 
-  row[i+0][j] = d_dist[(i+0 + i_offset) * d_matrix_size + block_round + j];
-  row[i+1][j] = d_dist[(i+1 + i_offset) * d_matrix_size + block_round + j];
-  row[i+2][j] = d_dist[(i+2 + i_offset) * d_matrix_size + block_round + j];
-  row[i+3][j] = d_dist[(i+3 + i_offset) * d_matrix_size + block_round + j];
-  col[i+0][j] = d_dist[(block_round + i+0)*d_matrix_size + (j_offset)+j];
-  col[i+1][j] = d_dist[(block_round + i+1)*d_matrix_size + (j_offset)+j];
-  col[i+2][j] = d_dist[(block_round + i+2)*d_matrix_size + (j_offset)+j];
-  col[i+3][j] = d_dist[(block_round + i+3)*d_matrix_size + (j_offset)+j];
-
-  int i_2_j_0 = d_dist[(i_offset + i+0)*d_matrix_size + (j_offset)+j];
-  int i_2_j_1 = d_dist[(i_offset + i+1)*d_matrix_size + (j_offset)+j];
-  int i_2_j_2 = d_dist[(i_offset + i+2)*d_matrix_size + (j_offset)+j];
-  int i_2_j_3 = d_dist[(i_offset + i+3)*d_matrix_size + (j_offset)+j];
-
+  // d_dist[(i+i_offset)*d_matrix_size+(j+j_offset)] = blockIdx.x + blockIdx.y;
+  row[i][j] = d_dist[(i + i_offset) * d_matrix_size + block_round + j];
+  col[i][j] = d_dist[(block_round + i)*d_matrix_size + (j_offset)+j];
+  // if (blockIdx.x==2 && blockIdx.y == 2){
+    // d_dist[(i + i_offset) * d_matrix_size + block_round + j] = blockIdx.x + blockIdx.y;
+    // d_dist[(block_round + i)*d_matrix_size + (j_offset)+j] = blockIdx.x + blockIdx.y;
+    // d_dist[(i_offset + i)*d_matrix_size + (j_offset)+j] =  blockIdx.x + blockIdx.y;
+  // }
+  int i_2_j = d_dist[(i_offset + i)*d_matrix_size + (j_offset)+j];
   __syncthreads();
 
-  #pragma unroll 
-  for (int k = 0; k < BLOCK_SIZE; k++){
-    i_2_j_0 = min(i_2_j_0, row[i+0][k] + col[k][j]);
-    i_2_j_1 = min(i_2_j_1, row[i+1][k] + col[k][j]);
-    i_2_j_2 = min(i_2_j_2, row[i+2][k] + col[k][j]);
-    i_2_j_3 = min(i_2_j_3, row[i+3][k] + col[k][j]);
-  }
+  #pragma unroll
+  for (int k = 0; k < BLOCK_SIZE; k++)
+    i_2_j = min(i_2_j, row[i][k] + col[k][j]);
 
-  d_dist[(i_offset + i+0)*d_matrix_size + (j_offset)+j] = i_2_j_0;
-  d_dist[(i_offset + i+1)*d_matrix_size + (j_offset)+j] = i_2_j_1;
-  d_dist[(i_offset + i+2)*d_matrix_size + (j_offset)+j] = i_2_j_2;
-  d_dist[(i_offset + i+3)*d_matrix_size + (j_offset)+j] = i_2_j_3;
-
+  d_dist[(i_offset + i)*d_matrix_size + (j_offset)+j] = i_2_j;
+  // d_dist[]
+  // int i_j_0 = d_dist[]
+  // int i_j_1 = d_dist[]
+  // int i_j_2 = d_dist[]
+  // int i_j_3 = d_dist[]
 }
 
 
@@ -170,13 +162,12 @@ void block_FW(int* d_dist) {
   dim3 num_threads(BLOCK_SIZE, BLOCK_SIZE);
   dim3 phase2_num_blocks(2, round); // one for col, one for row, one block will be redundant, but for the whole performance it doesn't really matters
   dim3 phase3_num_blocks(round, round);
-  dim3 phase3_num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
 
   // round = 1; // mygodimatomato: for checking
   for (int r = 0; r < round; r++) {
     phase1<<<1, num_threads, BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
     phase2<<<phase2_num_blocks, num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
-    phase3<<<phase3_num_blocks, phase3_num_threads, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
+    phase3<<<phase3_num_blocks, num_threads, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
   }
 }
 
@@ -201,16 +192,16 @@ int main(int argc, char* argv[]) {
   output(argv[2]);
 
   // mygodimatomato : for checking
-  // int k = 0;
-  // for (int i = 0; i < V; i++) {
-  //   for (int j = 0; j < V; j++){
-  //     if(adjacency_matrix[k] == MY_INF)
-  //       printf(" INF ");
-  //     else
-  //       printf("%4d ", adjacency_matrix[k]);
-  //     k++;
-  //   } printf("\n");
-  // } printf("\n");
+  int k = 0;
+  for (int i = 0; i < V; i++) {
+    for (int j = 0; j < V; j++){
+      if(adjacency_matrix[k] == MY_INF)
+        printf(" INF ");
+      else
+        printf("%4d ", adjacency_matrix[k]);
+      k++;
+    } printf("\n");
+  } printf("\n");
 
   // Write output to output file
   return 0;
