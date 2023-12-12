@@ -79,16 +79,26 @@ __global__ void phase1(int* d_dist, int r){
 }
 
 __global__ void phase2(int* d_dist, int r){
+  if (blockIdx.y == 0) return;
   int j = threadIdx.x; // col index
-  int i = threadIdx.y; // row index
+  int i = threadIdx.y*4; // row index
   int i_offset = 0;
   int j_offset = 0;
-  int i_2_k, k_2_j;
+  int i_2_k_0, i_2_k_1, i_2_k_2, i_2_k_3;
+  int k_2_j;
 
   // 0 : row block, 1 : col block, 2 : center block
   __shared__ int shared_memory[3 * BLOCK_SIZE * BLOCK_SIZE];
 
-  shared_memory[(i+BLOCK_SIZE*2) * BLOCK_SIZE + j] = d_dist[(i+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
+  shared_memory[(i+0+BLOCK_SIZE*2) * BLOCK_SIZE + j] = d_dist[(i+0+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
+  shared_memory[(i+1+BLOCK_SIZE*2) * BLOCK_SIZE + j] = d_dist[(i+1+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
+  shared_memory[(i+2+BLOCK_SIZE*2) * BLOCK_SIZE + j] = d_dist[(i+2+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
+  shared_memory[(i+3+BLOCK_SIZE*2) * BLOCK_SIZE + j] = d_dist[(i+3+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)];
+
+  // d_dist[(i+0+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = blockIdx.y;
+  // d_dist[(i+1+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = blockIdx.y;
+  // d_dist[(i+2+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = blockIdx.y;
+  // d_dist[(i+3+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = blockIdx.y;
 
   if (blockIdx.x == 1) { // col 
     i_offset = BLOCK_SIZE * blockIdx.y; 
@@ -98,24 +108,45 @@ __global__ void phase2(int* d_dist, int r){
     j_offset = BLOCK_SIZE * blockIdx.y;
   }
 
-  shared_memory[(i+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = d_dist[(i+i_offset) * d_matrix_size + j + j_offset];
+  shared_memory[(i+0+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = d_dist[(i+0+i_offset) * d_matrix_size + j + j_offset];
+  shared_memory[(i+1+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = d_dist[(i+1+i_offset) * d_matrix_size + j + j_offset];
+  shared_memory[(i+2+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = d_dist[(i+2+i_offset) * d_matrix_size + j + j_offset];
+  shared_memory[(i+3+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = d_dist[(i+3+i_offset) * d_matrix_size + j + j_offset];
+  // if (blockIdx.y == 2){
+  //  d_dist[(i+0+i_offset) * d_matrix_size + j + j_offset] = blockIdx.y;
+  //  d_dist[(i+1+i_offset) * d_matrix_size + j + j_offset] = blockIdx.y;
+  //  d_dist[(i+2+i_offset) * d_matrix_size + j + j_offset] = blockIdx.y;
+  //  d_dist[(i+3+i_offset) * d_matrix_size + j + j_offset] = blockIdx.y;
+  // }
   __syncthreads();
 
   #pragma unroll // mygodimatomato: should changed by BLOCK_SIZE
   for (int k = 0; k < BLOCK_SIZE; k++) {
     if (blockIdx.x == 0){
-      i_2_k = shared_memory[(i+BLOCK_SIZE*2) * BLOCK_SIZE + k];
+      i_2_k_0 = shared_memory[(i+0+BLOCK_SIZE*2) * BLOCK_SIZE + k];
+      i_2_k_1 = shared_memory[(i+1+BLOCK_SIZE*2) * BLOCK_SIZE + k];
+      i_2_k_2 = shared_memory[(i+2+BLOCK_SIZE*2) * BLOCK_SIZE + k];
+      i_2_k_3 = shared_memory[(i+3+BLOCK_SIZE*2) * BLOCK_SIZE + k];
       k_2_j = shared_memory[k * BLOCK_SIZE + j];
     } else {
-      i_2_k = shared_memory[(i+BLOCK_SIZE) * BLOCK_SIZE + k];
+      i_2_k_0 = shared_memory[(i+0+BLOCK_SIZE) * BLOCK_SIZE + k];
+      i_2_k_1 = shared_memory[(i+1+BLOCK_SIZE) * BLOCK_SIZE + k];
+      i_2_k_2 = shared_memory[(i+2+BLOCK_SIZE) * BLOCK_SIZE + k];
+      i_2_k_3 = shared_memory[(i+3+BLOCK_SIZE) * BLOCK_SIZE + k];
       k_2_j = shared_memory[(k+BLOCK_SIZE*2) * BLOCK_SIZE + j];
     }
 
-    if (shared_memory[(i+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] > i_2_k + k_2_j)
-      shared_memory[(i+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = i_2_k + k_2_j;
+    shared_memory[(i+0+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = min(i_2_k_0 + k_2_j, shared_memory[(i+0+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j]);
+    shared_memory[(i+1+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = min(i_2_k_1 + k_2_j, shared_memory[(i+1+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j]);
+    shared_memory[(i+2+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = min(i_2_k_2 + k_2_j, shared_memory[(i+2+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j]);
+    shared_memory[(i+3+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j] = min(i_2_k_3 + k_2_j, shared_memory[(i+3+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j]);
+    
   }
     
-  d_dist[(i+i_offset) * d_matrix_size + j + j_offset] = shared_memory[(i+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j];
+  d_dist[(i+0+i_offset) * d_matrix_size + j + j_offset] = shared_memory[(i+0+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j];
+  d_dist[(i+1+i_offset) * d_matrix_size + j + j_offset] = shared_memory[(i+1+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j];
+  d_dist[(i+2+i_offset) * d_matrix_size + j + j_offset] = shared_memory[(i+2+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j];
+  d_dist[(i+3+i_offset) * d_matrix_size + j + j_offset] = shared_memory[(i+3+BLOCK_SIZE*blockIdx.x) * BLOCK_SIZE + j];
 }
 
 __global__ void phase3(int* d_dist, int r){
@@ -170,10 +201,10 @@ void block_FW(int* d_dist) {
   dim3 phase3_num_blocks(round, round);
   dim3 phase3_num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
 
-  // round = 1; // mygodimatomato: for checking
+  round = 1; // mygodimatomato: for checking
   for (int r = 0; r < round; r++) {
     phase1<<<1, num_threads, BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
-    phase2<<<phase2_num_blocks, num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
+    phase2<<<phase2_num_blocks, phase3_num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
     phase3<<<phase3_num_blocks, phase3_num_threads, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
   }
 }
