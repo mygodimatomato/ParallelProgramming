@@ -67,7 +67,7 @@ __global__ void phase1(int* d_dist, int r){
 
 
   // D(i,j) = min(D(i,j), D(i,k)+D(k,j))
-  #pragma unroll  // mygodimatomato: should changed by BLOCK_SIZE
+  #pragma unroll 8 // mygodimatomato: should changed by BLOCK_SIZE
   for(int k = 0; k < BLOCK_SIZE; k++){
     int i_2_k = shared_memory[i * BLOCK_SIZE + k];
     int k_2_j = shared_memory[k * BLOCK_SIZE + j];
@@ -103,7 +103,7 @@ __global__ void phase2(int* d_dist, int r){
   shared_memory[i * BLOCK_SIZE + j + (BLOCK_SIZE * BLOCK_SIZE) * blockIdx.x] = d_dist[(i+i_offset) * d_matrix_size + j + j_offset];
   __syncthreads();
 
-  #pragma unroll // mygodimatomato: should changed by BLOCK_SIZE
+  #pragma unroll 8 // mygodimatomato: should changed by BLOCK_SIZE
   for (int k = 0; k < BLOCK_SIZE; k++) {
     if (blockIdx.x == 0){
       i_2_k = shared_memory[i * BLOCK_SIZE + k + (BLOCK_SIZE*BLOCK_SIZE)*2];
@@ -121,39 +121,29 @@ __global__ void phase2(int* d_dist, int r){
 }
 
 __global__ void phase3(int* d_dist, int r, int* d_check){
-  if (blockIdx.x == r && blockIdx.y == r) return;
+  int j = threadIdx.x; // col index
+  int i = threadIdx.y; // row index
+  int i_offset = BLOCK_SIZE * blockIdx.x;
+  int j_offset = BLOCK_SIZE * blockIdx.y;
 
-  __shared__ int row[BLOCK_SIZE][BLOCK_SIZE];
-  __shared__ int col[BLOCK_SIZE][BLOCK_SIZE];
+  __shared__ int shared_memory[3*BLOCK_SIZE*BLOCK_SIZE];
 
-  int i = threadIdx.y;
-  int j = threadIdx.x;
+  // d_dist[(i + i_offset) * d_matrix_size + (j + j_offset)] = blockIdx.y + blockIdx.x;
 
-  int i_offset = blockIdx.y * BLOCK_SIZE;
-  int j_offset = blockIdx.x * BLOCK_SIZE;
-  int block_round = r * BLOCK_SIZE;
-
-  // d_dist[(i+i_offset)*d_matrix_size+(j+j_offset)] = blockIdx.x + blockIdx.y;
-  row[i][j] = d_dist[(i + i_offset) * d_matrix_size + block_round + j];
-  col[i][j] = d_dist[(block_round + i)*d_matrix_size + (j_offset)+j];
-  // if (blockIdx.x==2 && blockIdx.y == 2){
-    // d_dist[(i + i_offset) * d_matrix_size + block_round + j] = blockIdx.x + blockIdx.y;
-    // d_dist[(block_round + i)*d_matrix_size + (j_offset)+j] = blockIdx.x + blockIdx.y;
-    // d_dist[(i_offset + i)*d_matrix_size + (j_offset)+j] =  blockIdx.x + blockIdx.y;
-  // }
-  int i_2_j = d_dist[(i_offset + i)*d_matrix_size + (j_offset)+j];
+  shared_memory[i * BLOCK_SIZE + j] = d_dist[(i + i_offset) * d_matrix_size + (j + j_offset)];
+  shared_memory[BLOCK_SIZE * (i + BLOCK_SIZE) + j] = d_dist[(i + i_offset) * d_matrix_size + j + r * BLOCK_SIZE];
+  shared_memory[BLOCK_SIZE * (i + BLOCK_SIZE*2) + j] = d_dist[(i + r * BLOCK_SIZE) * d_matrix_size + (j + j_offset)];
   __syncthreads();
 
-  #pragma unroll
-  for (int k = 0; k < BLOCK_SIZE; k++)
-    i_2_j = min(i_2_j, row[i][k] + col[k][j]);
+  #pragma unroll 8
+  for(int k = 0; k < BLOCK_SIZE; k++){
+    int i_2_k = shared_memory[BLOCK_SIZE * (i + BLOCK_SIZE) + k];
+    int k_2_j = shared_memory[BLOCK_SIZE * (k + BLOCK_SIZE*2) + j];
+    if (shared_memory[i * BLOCK_SIZE + j] > i_2_k + k_2_j)
+      shared_memory[i * BLOCK_SIZE + j] = i_2_k + k_2_j;
+  }
 
-  d_dist[(i_offset + i)*d_matrix_size + (j_offset)+j] = i_2_j;
-  // d_dist[]
-  // int i_j_0 = d_dist[]
-  // int i_j_1 = d_dist[]
-  // int i_j_2 = d_dist[]
-  // int i_j_3 = d_dist[]
+  d_dist[(i + i_offset) * d_matrix_size + (j + j_offset)] = shared_memory[i * BLOCK_SIZE + j];
 }
 
 
@@ -167,7 +157,7 @@ void block_FW(int* d_dist, int* d_check) {
   for (int r = 0; r < round; r++) {
     phase1<<<1, num_threads, BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
     phase2<<<phase2_num_blocks, num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
-    phase3<<<phase3_num_blocks, num_threads, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r, d_check);
+    phase3<<<phase3_num_blocks, num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r, d_check);
   }
 }
 
@@ -198,16 +188,16 @@ int main(int argc, char* argv[]) {
   output(argv[2]);
 
   // mygodimatomato : for checking
-  int k = 0;
-  for (int i = 0; i < V; i++) {
-    for (int j = 0; j < V; j++){
-      if(adjacency_matrix[k] == MY_INF)
-        printf(" INF ");
-      else
-        printf("%4d ", adjacency_matrix[k]);
-      k++;
-    } printf("\n");
-  } printf("\n");
+  // int k = 0;
+  // for (int i = 0; i < V; i++) {
+  //   for (int j = 0; j < V; j++){
+  //     if(adjacency_matrix[k] == MY_INF)
+  //       printf(" INF ");
+  //     else
+  //       printf("%4d ", adjacency_matrix[k]);
+  //     k++;
+  //   } printf("\n");
+  // } printf("\n");
 
   // for(int i = 0; i <BLOCK_SIZE;i++){
   //   for(int j = 0; j <BLOCK_SIZE; j++){
