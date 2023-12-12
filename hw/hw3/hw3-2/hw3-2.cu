@@ -3,15 +3,13 @@
 #include <cmath>
 
 #define MY_INF 1073741823
-#define BLOCK_SIZE 8
+#define BLOCK_SIZE 32
 
 int V, E;
 int matrix_size;
 int *adjacency_matrix;
 size_t result;
 __constant__ int d_matrix_size;
-
-int ceil(int a, int b) { return (a + b - 1) / b; }
 
 void input(char* infile) {
   FILE *input_file = fopen(infile, "rb");
