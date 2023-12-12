@@ -120,7 +120,7 @@ __global__ void phase2(int* d_dist, int r){
   d_dist[(i+i_offset) * d_matrix_size + j + j_offset] = shared_memory[i * BLOCK_SIZE + j + (BLOCK_SIZE * BLOCK_SIZE) * blockIdx.x];
 }
 
-__global__ void phase3(int* d_dist, int r, int* d_check){
+__global__ void phase3(int* d_dist, int r){
   if (blockIdx.x == r && blockIdx.y == r) return;
 
   __shared__ int row[BLOCK_SIZE][BLOCK_SIZE];
@@ -157,7 +157,7 @@ __global__ void phase3(int* d_dist, int r, int* d_check){
 }
 
 
-void block_FW(int* d_dist, int* d_check) {
+void block_FW(int* d_dist) {
   int round = matrix_size/BLOCK_SIZE;
   dim3 num_threads(BLOCK_SIZE, BLOCK_SIZE);
   dim3 phase2_num_blocks(2, round); // one for col, one for row, one block will be redundant, but for the whole performance it doesn't really matters
@@ -167,7 +167,7 @@ void block_FW(int* d_dist, int* d_check) {
   for (int r = 0; r < round; r++) {
     phase1<<<1, num_threads, BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
     phase2<<<phase2_num_blocks, num_threads, 3 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
-    phase3<<<phase3_num_blocks, num_threads, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r, d_check);
+    phase3<<<phase3_num_blocks, num_threads, 2 * BLOCK_SIZE * BLOCK_SIZE * sizeof(int)>>>(d_dist, r);
   }
 }
 
@@ -182,32 +182,26 @@ int main(int argc, char* argv[]) {
   cudaMemcpy(d_dist, adjacency_matrix, sizeof(int) * matrix_size * matrix_size, cudaMemcpyHostToDevice);
   cudaMemcpyToSymbol(d_matrix_size, &matrix_size, sizeof(int));
   
-  // mygodimatomato: for checking
-  int *h_check;
-  int *d_check;
-  h_check = (int*)malloc(sizeof(int)*BLOCK_SIZE *BLOCK_SIZE);
-  cudaMalloc((void**)&d_check, sizeof(int)*BLOCK_SIZE *BLOCK_SIZE);
   
   // Start executing the block Floyed-Warshall
-  block_FW(d_dist, d_check);
+  block_FW(d_dist);
 
   // Copy the outcome back to the adjacency_matrix 
   cudaMemcpy(adjacency_matrix, d_dist, sizeof(int) * matrix_size * matrix_size, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(h_check, d_check, sizeof(int)*BLOCK_SIZE*BLOCK_SIZE, cudaMemcpyDeviceToHost);
   
   output(argv[2]);
 
   // mygodimatomato : for checking
-  int k = 0;
-  for (int i = 0; i < V; i++) {
-    for (int j = 0; j < V; j++){
-      if(adjacency_matrix[k] == MY_INF)
-        printf(" INF ");
-      else
-        printf("%4d ", adjacency_matrix[k]);
-      k++;
-    } printf("\n");
-  } printf("\n");
+  // int k = 0;
+  // for (int i = 0; i < V; i++) {
+  //   for (int j = 0; j < V; j++){
+  //     if(adjacency_matrix[k] == MY_INF)
+  //       printf(" INF ");
+  //     else
+  //       printf("%4d ", adjacency_matrix[k]);
+  //     k++;
+  //   } printf("\n");
+  // } printf("\n");
 
   // for(int i = 0; i <BLOCK_SIZE;i++){
   //   for(int j = 0; j <BLOCK_SIZE; j++){
