@@ -230,16 +230,16 @@ int main(int argc, char* argv[]) {
   output(argv[2]);
 
   // mygodimatomato : for checking
-  int k = 0;
-  for (int i = 0; i < V; i++) {
-    for (int j = 0; j < V; j++){
-      if(adjacency_matrix[k] == MY_INF)
-        printf(" INF ");
-      else
-        printf("%4d ", adjacency_matrix[k]);
-      k++;
-    } printf("\n");
-  } printf("\n");
+  // int k = 0;
+  // for (int i = 0; i < V; i++) {
+  //   for (int j = 0; j < V; j++){
+  //     if(adjacency_matrix[k] == MY_INF)
+  //       printf(" INF ");
+  //     else
+  //       printf("%4d ", adjacency_matrix[k]);
+  //     k++;
+  //   } printf("\n");
+  // } printf("\n");
 
   // Write output to output file
   return 0;
