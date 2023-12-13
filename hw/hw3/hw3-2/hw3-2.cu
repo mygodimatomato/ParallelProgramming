@@ -15,9 +15,11 @@ void input(char* infile) {
   FILE *input_file = fopen(infile, "rb");
   result = fread(&V, sizeof(int), 1, input_file);
   result = fread(&E, sizeof(int), 1, input_file);
-  
+  // int remainder = V%128;
+  // matrix_size = (remainder == 0) ? V : V + (128-remainder);
   matrix_size = ((V / BLOCK_SIZE) + 1 ) * BLOCK_SIZE; // matrix size must be multiple of BLOCK_SIZE
-
+  // printf("%d, %d", V, E);
+  // printf("\n%d", matrix_size);
   adjacency_matrix = (int *)malloc(matrix_size * matrix_size * sizeof(int)); // set the matrix to 1D array for easier data transfer
 
   cudaMallocHost((void **)&adjacency_matrix, matrix_size * matrix_size * sizeof(int)); // pinned memory for faster data transfer
