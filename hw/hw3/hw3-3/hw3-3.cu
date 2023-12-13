@@ -4,7 +4,7 @@
 #include <omp.h>
 
 #define MY_INF 1073741823
-#define BLOCK_SIZE 64
+#define BLOCK_SIZE 32
 
 int V, E;
 int matrix_size;
@@ -23,8 +23,6 @@ void input(char* infile) {
   // matrix_size = ((V / BLOCK_SIZE) + 1 ) * BLOCK_SIZE; // matrix size must be multiple of BLOCK_SIZE
 
   adjacency_matrix = (int *)malloc(matrix_size * matrix_size * sizeof(int)); // set the matrix to 1D array for easier data transfer
-
-  cudaMallocHost((void **)&adjacency_matrix, matrix_size * matrix_size * sizeof(int)); // pinned memory for faster data transfer
  
   for(int i = 0; i < matrix_size; i++) {
     for(int j = 0; j < matrix_size; j++) {
@@ -183,16 +181,16 @@ __global__ void phase3(int* d_dist, int r){
 
 
 void block_FW(int* d_dist) {
-  int round = matrix_size/BLOCK_SIZE;
-  int phase2_num_blocks = round;
-  dim3 phase3_num_blocks(round, round);
-  dim3 num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
+  cudaGetDeviceCount(&num_gpus);
+  omp_set_num_threads(num_gpus);
+  cudaHostRegister(adjacency_matrix, matrix_size*matrix_size*sizeof(int), cudaHostRegisterDefault);
 
-  // round = 3; // mygodimatomato: for checking
-  for (int r = 0; r < round; r++) {
-    phase1<<<1, num_threads>>>(d_dist, r);
-    phase2<<<phase2_num_blocks, num_threads>>>(d_dist, r);
-    phase3<<<phase3_num_blocks, num_threads>>>(d_dist, r);
+  #pragma omp parallel
+  {
+    unsigned int cpu_thread_id = omp_set_num_threads();
+    cudaSetDevice(cpu_thread_id);
+
+    cudaMalloc(&d_dist)
   }
 }
 
@@ -203,8 +201,6 @@ int main(int argc, char* argv[]) {
 
   // Allocate the memory for the matrix in GPU
   int *d_dist;
-  cudaMalloc((void**)&d_dist, sizeof(int) * matrix_size * matrix_size);
-  cudaMemcpy(d_dist, adjacency_matrix, sizeof(int) * matrix_size * matrix_size, cudaMemcpyHostToDevice);
   cudaMemcpyToSymbol(d_matrix_size, &matrix_size, sizeof(int));
   
   
