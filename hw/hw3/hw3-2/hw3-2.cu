@@ -3,7 +3,7 @@
 #include <cmath>
 
 #define MY_INF 1073741823
-#define BLOCK_SIZE 32
+#define BLOCK_SIZE 64
 
 int V, E;
 int matrix_size;
