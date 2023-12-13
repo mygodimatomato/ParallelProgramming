@@ -75,7 +75,7 @@ __global__ void phase1(int* d_dist, int r){
     shared_memory[(i+2)*BLOCK_SIZE+j] = min(shared_memory[(i+2)*BLOCK_SIZE+j], shared_memory[(i+2) * BLOCK_SIZE + k] + shared_memory[k * BLOCK_SIZE + j]);
     shared_memory[(i+3)*BLOCK_SIZE+j] = min(shared_memory[(i+3)*BLOCK_SIZE+j], shared_memory[(i+3) * BLOCK_SIZE + k]+ shared_memory[k * BLOCK_SIZE + j]);
   }
-
+  __syncthreads();
   // writing data back to global memory
   d_dist[(i+0+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = shared_memory[(i+0) * BLOCK_SIZE + j];
   d_dist[(i+1+r*BLOCK_SIZE) * d_matrix_size + (j+r*BLOCK_SIZE)] = shared_memory[(i+1) * BLOCK_SIZE + j];
