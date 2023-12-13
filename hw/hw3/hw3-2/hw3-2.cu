@@ -167,6 +167,7 @@ __global__ void phase3(int* d_dist, int r){
     i_2_j_3 = min(i_2_j_3, row[i+3][k] + col[k][j]);
   }
 
+  __syncthreads(); // mygodimatomato: add sync to check
   d_dist[(i_offset + i+0)*d_matrix_size + (j_offset)+j] = i_2_j_0;
   d_dist[(i_offset + i+1)*d_matrix_size + (j_offset)+j] = i_2_j_1;
   d_dist[(i_offset + i+2)*d_matrix_size + (j_offset)+j] = i_2_j_2;
