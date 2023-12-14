@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
+
 
 #define MY_INF 1073741823
 #define BLOCK_SIZE 64
@@ -209,8 +211,17 @@ void block_FW(int* d_dist) {
 
 int main(int argc, char* argv[]) {
   // Read input from input file
-  input(argv[1]);
 
+  // cudaEvent_t start, stop;
+  // cudaEventCreate(&start);
+  // cudaEventCreate(&stop);
+  // cudaEventRecord(start, 0);
+  input(argv[1]);
+  printf("V: %d, E: %d\n", V, E);
+  // cudaEventRecord(stop, 0);
+  // float elapsedTime;
+  // cudaEventElapsedTime(&elapsedTime, start, stop);
+  // printf("Host Input Time: %f ms\n", elapsedTime);
   // Allocate the memory for the matrix in GPU
   int *d_dist;
   cudaMalloc((void**)&d_dist, sizeof(int) * matrix_size * matrix_size);
@@ -223,8 +234,17 @@ int main(int argc, char* argv[]) {
 
   // Copy the outcome back to the adjacency_matrix 
   cudaMemcpy(adjacency_matrix, d_dist, sizeof(int) * matrix_size * matrix_size, cudaMemcpyDeviceToHost);
-  
+
+  // cudaEvent_t start2, stop2;
+  // cudaEventCreate(&start2);
+  // cudaEventCreate(&stop2);
+  // cudaEventRecord(start2, 0);
   output(argv[2]);
+  // cudaEventRecord(stop2, 0);
+  // float elapsedTime2;
+  // cudaEventElapsedTime(&elapsedTime2, start2, stop2);
+  // printf("Host Output Time: %f ms\n", elapsedTime2);
+
 
   // mygodimatomato : for checking
   // int k = 0;
