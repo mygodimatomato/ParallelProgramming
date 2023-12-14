@@ -5,7 +5,7 @@
 
 
 #define MY_INF 1073741823
-#define BLOCK_SIZE 64
+#define BLOCK_SIZE 8
 
 int V, E;
 int matrix_size;
