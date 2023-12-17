@@ -8,7 +8,7 @@ LDFLAGS   := -lm -lgomp
 
 # Targets for Each Makefile
 EXES1     := hw3-3
-EXES2     := hw3-2 modify_factor
+EXES2     := hw3-2
 EXES3     := hw3-1
 
 # All Targets
