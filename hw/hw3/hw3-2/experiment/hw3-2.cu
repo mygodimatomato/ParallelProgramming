@@ -5,7 +5,7 @@
 
 
 #define MY_INF 1073741823
-#define BLOCK_SIZE 8
+#define BLOCK_SIZE 64
 
 int V, E;
 int matrix_size;
@@ -162,14 +162,19 @@ __global__ void phase3(int* d_dist, int r){
   int j_offset = blockIdx.x * BLOCK_SIZE;
   int block_round = r * BLOCK_SIZE;
 
-  row[i+0][j] = d_dist[(i+0 + i_offset) * d_matrix_size + block_round + j];
-  row[i+1][j] = d_dist[(i+1 + i_offset) * d_matrix_size + block_round + j];
-  row[i+2][j] = d_dist[(i+2 + i_offset) * d_matrix_size + block_round + j];
-  row[i+3][j] = d_dist[(i+3 + i_offset) * d_matrix_size + block_round + j];
-  col[i+0][j] = d_dist[(block_round + i+0)*d_matrix_size + (j_offset)+j];
-  col[i+1][j] = d_dist[(block_round + i+1)*d_matrix_size + (j_offset)+j];
-  col[i+2][j] = d_dist[(block_round + i+2)*d_matrix_size + (j_offset)+j];
-  col[i+3][j] = d_dist[(block_round + i+3)*d_matrix_size + (j_offset)+j];
+  #pragma unroll
+  for(int ii = 0; ii < 4; ii++){
+    row[i+ii][j] = d_dist[(i+ii + i_offset) * d_matrix_size + block_round + j];
+    col[i+ii][j] = d_dist[(block_round + i+ii)*d_matrix_size + (j_offset)+j];
+  }
+  // row[i+0][j] = d_dist[(i+0 + i_offset) * d_matrix_size + block_round + j];
+  // row[i+1][j] = d_dist[(i+1 + i_offset) * d_matrix_size + block_round + j];
+  // row[i+2][j] = d_dist[(i+2 + i_offset) * d_matrix_size + block_round + j];
+  // row[i+3][j] = d_dist[(i+3 + i_offset) * d_matrix_size + block_round + j];
+  // col[i+0][j] = d_dist[(block_round + i+0)*d_matrix_size + (j_offset)+j];
+  // col[i+1][j] = d_dist[(block_round + i+1)*d_matrix_size + (j_offset)+j];
+  // col[i+2][j] = d_dist[(block_round + i+2)*d_matrix_size + (j_offset)+j];
+  // col[i+3][j] = d_dist[(block_round + i+3)*d_matrix_size + (j_offset)+j];
 
   int i_2_j_0 = d_dist[(i_offset + i+0)*d_matrix_size + (j_offset)+j];
   int i_2_j_1 = d_dist[(i_offset + i+1)*d_matrix_size + (j_offset)+j];
@@ -198,7 +203,9 @@ void block_FW(int* d_dist) {
   int round = matrix_size/BLOCK_SIZE;
   dim3 phase2_num_blocks(2, round); // one for col, one for row, one block will be redundant, but for the whole performance it doesn't really matters
   dim3 phase3_num_blocks(round, round);
-  dim3 num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
+  dim3 num_threads(BLOCK_SIZE, 1024/BLOCK_SIZE);
+  // dim3 num_threads(BLOCK_SIZE, 16);
+  // dim3 num_threads(BLOCK_SIZE, BLOCK_SIZE/4);
 
   // round = 1; // mygodimatomato: for checking
   for (int r = 0; r < round; r++) {
