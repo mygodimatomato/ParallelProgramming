@@ -12,6 +12,3 @@ seq: seq.cc
 
 hw3-2: hw3-2.cu
 	nvcc $(NVFLAGS) $(LDFLAGS) -o $@ $?
-
-modify_factor: modify_factor.cu
-	nvcc $(NVFLAGS) $(LDFLAGS) -o $@ $?
