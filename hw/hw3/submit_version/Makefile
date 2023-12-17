@@ -30,7 +30,7 @@ $(EXES2): hw3-2.cu
 	$(NVCC) $(NVFLAGS) $(LDFLAGS) -o $@ $?
 
 # Rules for Third Makefile
-$(EXES3): hw3-1.c
+$(EXES3): hw3-1.cc
 	$(CXX) $(CXXFLAGS) $(CFLAGS) -o $@ $?
 
 # Additional rules or dependencies can be added here if needed
